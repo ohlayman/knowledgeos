@@ -1,0 +1,62 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`parseMarkdown > 结构快照稳定 1`] = `
+[
+  {
+    "endOffset": 4,
+    "kind": "heading",
+    "language": undefined,
+    "level": 1,
+    "startOffset": 0,
+  },
+  {
+    "endOffset": 21,
+    "kind": "paragraph",
+    "language": undefined,
+    "level": undefined,
+    "startOffset": 6,
+  },
+  {
+    "endOffset": 25,
+    "kind": "heading",
+    "language": undefined,
+    "level": 2,
+    "startOffset": 23,
+  },
+  {
+    "endOffset": 38,
+    "kind": "list",
+    "language": undefined,
+    "level": undefined,
+    "startOffset": 27,
+  },
+  {
+    "endOffset": 42,
+    "kind": "heading",
+    "language": undefined,
+    "level": 2,
+    "startOffset": 40,
+  },
+  {
+    "endOffset": 93,
+    "kind": "code",
+    "language": "ts",
+    "level": undefined,
+    "startOffset": 44,
+  },
+  {
+    "endOffset": 123,
+    "kind": "table",
+    "language": undefined,
+    "level": undefined,
+    "startOffset": 95,
+  },
+  {
+    "endOffset": 132,
+    "kind": "quote",
+    "language": undefined,
+    "level": undefined,
+    "startOffset": 125,
+  },
+]
+`;

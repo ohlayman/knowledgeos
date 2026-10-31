@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <title>分块策略笔记</title>
+  </head>
+  <body>
+    <header><div class="logo">KnowledgeOS</div></header>
+    <div class="post">
+      <div class="post-header">
+        <h2>分块策略笔记</h2>
+        <span>2026-10-01</span>
+      </div>
+      <div class="post-body">
+        <p>切块的目标是让每个块既有完整语义，又不超过模型上下文预算。</p>
+        <p>常见做法是按标题分组，再按句子边界贪心累积到目标长度。</p>
+        <pre><code>const chunks = split(blocks, { targetMax: 800 });</code></pre>
+        <blockquote>重叠只用于检索上下文，不应参与引用高亮。</blockquote>
+      </div>
+    </div>
+    <section class="comments">
+      <p>评论区第一条：写得很清楚。</p>
+      <p>评论区第二条：期待下一篇。</p>
+    </section>
+  </body>
+</html>

@@ -8,6 +8,7 @@ export const ERROR_CODES = {
   INVALID_ARGUMENT: { status: 400, retryable: false, message: '请求参数不合法' },
   TEXT_TOO_LONG: { status: 400, retryable: false, message: '文本超过长度上限' },
   UNSUPPORTED_FORMAT: { status: 415, retryable: false, message: '不支持的文件类型' },
+  PDF_PASSWORD_REQUIRED: { status: 422, retryable: false, message: 'PDF 已加密，需要密码' },
   FILE_TOO_LARGE: { status: 413, retryable: false, message: '文件超过大小上限' },
   BATCH_TOO_LARGE: { status: 400, retryable: false, message: '单批数量超过上限' },
   SSRF_BLOCKED: { status: 400, retryable: false, message: 'URL 不允许访问' },
