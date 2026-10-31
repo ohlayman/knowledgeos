@@ -67,13 +67,29 @@ describe('health routes', () => {
     await app.close();
   });
 
+  it('returns a request id and applies CORS/security headers', async () => {
+    const app = buildApp(fakeDeps());
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/health/live',
+      headers: { origin: 'http://localhost:5173' },
+    });
+
+    expect(response.headers['x-request-id']).toEqual(expect.any(String));
+    expect(response.headers['access-control-allow-origin']).toBe('http://localhost:5173');
+    expect(response.headers['x-content-type-options']).toBe('nosniff');
+    await app.close();
+  });
+
   it('uses the error envelope for unknown routes', async () => {
     const app = buildApp(fakeDeps());
 
     const response = await app.inject({ method: 'GET', url: '/api/v1/unknown' });
 
     expect(response.statusCode).toBe(404);
-    expect(response.json()).toEqual({
+    const body = response.json();
+    expect(body).toEqual({
       error: {
         code: 'NOT_FOUND',
         message: expect.any(String),
@@ -81,6 +97,7 @@ describe('health routes', () => {
         requestId: expect.any(String),
       },
     });
+    expect(response.headers['x-request-id']).toBe(body.error.requestId);
     await app.close();
   });
 });

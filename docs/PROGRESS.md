@@ -7,10 +7,11 @@
 
 ## 1. 当前结论
 
-- **当前阶段：** M0 工程骨架进行中，4/6 任务完成，2 个任务卡在 Docker 运行时验证。
+- **当前阶段：** M0 工程骨架完成，6/6 任务通过；准备进入 M1-T1。
 - **当前版本：** V1。
-- **下一步：** 解决 Docker Desktop 无法启动的问题，完成 `docker compose up -d` 与真实 `/health/ready` 验证；之后进入 M1-T1。
-- **阻塞：** Docker Desktop 守护进程报 “Docker Desktop is unable to start”，容器无法启动。代码层验证（typecheck/lint/test/build/health 接口）已通过。
+- **下一步：** 创建 `packages/database`，落地 Prisma Schema 与初始迁移。
+- **环境说明：** 本机原生 PostgreSQL 占用 5432，compose 的 Postgres 映射到宿主 5433；`.env.example` 已同步。
+- **阻塞：** 无。
 
 ---
 
@@ -42,11 +43,11 @@
 | 任务 | 状态 | 开始 | 完成 | 证据 |
 | --- | --- | --- | --- | --- |
 | M0-T1 pnpm workspace / Turborepo / TS / Lint | DONE | 2026-10-31 | 2026-10-31 | `pnpm typecheck/lint/test/build/format:check` 全通过 |
-| M0-T2 docker-compose（PG/Redis/Qdrant） | DOING | 2026-10-31 | — | `docker compose config --quiet` 通过；Docker Desktop 守护进程无法启动，容器未起 |
+| M0-T2 docker-compose（PG/Redis/Qdrant） | DONE | 2026-10-31 | 2026-11-01 | 三容器 healthy；Postgres 宿主端口 5433（5432 被本机原生 PG 占用） |
 | M0-T3 shared 基础（错误码/Zod/常量） | DONE | 2026-10-31 | 2026-10-31 | `packages/shared` 6/6 测试通过 |
-| M0-T4 Fastify 骨架 + 错误信封 | DONE | 2026-10-31 | 2026-10-31 | API 4/4 测试通过；`/health/live` 返回 200 |
-| M0-T5 健康检查 | DOING | 2026-10-31 | — | 单测覆盖全 ok 路径；依赖缺失时真实接口返回 503；真实依赖验证待 Docker |
-| M0-T6 CI | DONE | 2026-10-31 | 2026-10-31 | `.github/workflows/ci.yml` 已添加；未在远端执行 |
+| M0-T4 Fastify 骨架 + 错误信封 | DONE | 2026-10-31 | 2026-11-01 | API 5/5 测试通过；含 `x-request-id`、CORS、Helmet 断言 |
+| M0-T5 健康检查 | DONE | 2026-10-31 | 2026-11-01 | 真实 `/health/ready` 返回 200，database/redis/qdrant 均 ok |
+| M0-T6 CI | DONE | 2026-10-31 | 2026-11-01 | 首次 GitHub Actions 运行成功（run 41215947135） |
 
 ### M1 数据层与技术验证
 
@@ -174,7 +175,7 @@
 | 首 token P95 | TODO | — | ≤ 2.5s |
 | 非 LLM 接口 P95 | TODO | — | ≤ 300ms |
 | 引用可解析率 | TODO | — | 100% |
-| 单测 | DONE | 10/10 通过（shared 6 + api 4） | 全绿 |
+| 单测 | DONE | 11/11 通过（shared 6 + api 5） | 全绿 |
 | 集成/E2E | TODO | — | 全绿 |
 
 ---
@@ -185,3 +186,4 @@
 | --- | --- |
 | 2026-10-31 | 完成技术设计、数据库设计、实现计划；建立本台账；V1 编码待启动 |
 | 2026-10-31 | M0-T1/T3/T4/T6 完成；M0-T2/T5 卡在 Docker Desktop 守护进程无法启动；单测 10/10 通过 |
+| 2026-11-01 | M0 完成：真实 readiness 200；修复 x-request-id、根 .env 加载；Postgres 宿主端口改 5433；CI 首次运行通过 |

@@ -1,7 +1,10 @@
-import 'dotenv/config';
+import { fileURLToPath } from 'node:url';
+import { config as loadDotenv } from 'dotenv';
 import { loadEnv } from '@kos/shared';
 import { buildApp } from './app.js';
 import { createDeps } from './deps.js';
+
+loadDotenv({ path: fileURLToPath(new URL('../../../.env', import.meta.url)) });
 
 const env = loadEnv();
 const deps = createDeps(env);

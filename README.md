@@ -10,6 +10,8 @@
 
 > 如果本机 PATH 中存在同名 `docker` 的 npm 包，请使用 Docker Desktop 自带的 CLI，例如：
 > `/c/Users/<you>/AppData/Local/Programs/DockerDesktop/resources/bin/docker.exe`。
+>
+> 如果本机已有 PostgreSQL 占用 5432，compose 会把容器映射到宿主 5433；`.env.example` 已按 5433 配置。
 
 ## 快速开始
 

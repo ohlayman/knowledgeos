@@ -15,6 +15,10 @@ export function buildApp(deps: AppDeps): FastifyInstance {
   app.register(helmet);
   app.register(cors, { origin: deps.env.WEB_ORIGIN });
 
+  app.addHook('onRequest', async (request, reply) => {
+    reply.header('x-request-id', request.id);
+  });
+
   app.setErrorHandler((error, request, reply) => {
     const status = error instanceof ApiError ? error.status : 500;
     void reply.status(status).send(toErrorEnvelope(error, request.id));

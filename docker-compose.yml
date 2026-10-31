@@ -6,7 +6,8 @@ services:
       POSTGRES_PASSWORD: kos
       POSTGRES_DB: knowledgeos
     ports:
-      - '5432:5432'
+      # Host 5432 may be occupied by a native PostgreSQL; use 5433.
+      - '5433:5432'
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
