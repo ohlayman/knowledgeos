@@ -54,7 +54,7 @@ export class ConversationService {
     private readonly conversations: ConversationRepository,
     private readonly chunks: ChunkRepository,
     private readonly retrieval: RetrievalService,
-    private readonly chat: ChatProvider,
+    private readonly chatProvider: () => Promise<ChatProvider>,
   ) {}
 
   async list() {
@@ -115,6 +115,7 @@ export class ConversationService {
     sink: AnswerSink,
     signal?: AbortSignal,
   ): Promise<void> {
+    const chat = await this.chatProvider();
     const conversation = await this.get(conversationId);
 
     const history: ChatMessage[] = conversation.messages
@@ -137,7 +138,7 @@ export class ConversationService {
       role: 'assistant',
       content: '',
       status: 'streaming',
-      model: this.chat.model,
+      model: chat.model,
     });
 
     sink.meta({ conversationId, messageId: assistant.id });
@@ -204,7 +205,7 @@ export class ConversationService {
     let usage: Record<string, unknown> | undefined;
 
     try {
-      for await (const delta of this.chat.stream(prompt.messages, {
+      for await (const delta of chat.stream(prompt.messages, {
         ...(signal ? { signal } : {}),
         onUsage: (value) => {
           usage = { ...value };

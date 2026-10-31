@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { Prisma, PrismaClient } from '@kos/database';
 import type { EmbeddingProvider } from '@kos/embeddings';
-import { buildTsQuery, rrf } from '@kos/shared';
+import { buildTsQuery, buildTsQueryLoose, rrf } from '@kos/shared';
 import type { QdrantStore } from './qdrant.js';
 import { assembleEvidence, keywordOverlap } from './evidence.js';
 import { keywordSearch } from './keyword.js';
@@ -239,7 +239,17 @@ export class RetrievalService {
     degraded: string[],
   ): Promise<ChunkRow[]> {
     try {
-      return await keywordSearch(this.deps.prisma, buildTsQuery(query), options);
+      const strict = buildTsQuery(query);
+      const strictRows = await keywordSearch(this.deps.prisma, strict, options);
+      if (strictRows.length > 0) {
+        return strictRows;
+      }
+
+      const loose = buildTsQueryLoose(query);
+      if (!loose || loose === strict) {
+        return [];
+      }
+      return await keywordSearch(this.deps.prisma, loose, options);
     } catch {
       if (!degraded.includes('keyword_unavailable')) {
         degraded.push('keyword_unavailable');

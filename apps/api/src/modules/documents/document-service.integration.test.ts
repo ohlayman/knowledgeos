@@ -140,6 +140,26 @@ describe.skipIf(!enabled)('DocumentService', () => {
     });
   });
 
+  it('re-imports content after the previous document was deleted', async () => {
+    const firstTitle = `Deleted ${randomUUID()}`;
+    const content = `已删除文档的内容 ${randomUUID()}`;
+
+    const first = await service.ingestText({ title: firstTitle, content, tags: [] });
+    expect(first.status).toBe('queued');
+    await service.deleteDocument(first.documentId);
+
+    const again = await service.ingestText({ title: `${firstTitle} v2`, content, tags: [] });
+    expect(again.status).toBe('queued');
+    expect(again.documentId).not.toBe(first.documentId);
+
+    await prisma.document.deleteMany({
+      where: { id: { in: [first.documentId, again.documentId] } },
+    });
+    await prisma.source.deleteMany({
+      where: { fingerprint: { in: [firstTitle.toLowerCase(), `${firstTitle} v2`.toLowerCase()] } },
+    });
+  });
+
   it('lists, filters, updates and soft deletes a document', async () => {
     const title = `List ${randomUUID()}`;
     const tag = `tag-${randomUUID().slice(0, 8)}`;

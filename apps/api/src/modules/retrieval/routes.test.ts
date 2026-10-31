@@ -26,7 +26,10 @@ function fakeDeps(): AppDeps {
     documents: {} as AppDeps['documents'],
     jobs: {} as AppDeps['jobs'],
     conversations: {} as AppDeps['conversations'],
+    settings: {} as AppDeps['settings'],
+    metrics: {} as AppDeps['metrics'],
     retrieval: { retrieve: vi.fn() } as unknown as AppDeps['retrieval'],
+    chunks: {} as AppDeps['chunks'],
     urlFetcher: { fetch: vi.fn() },
   } as AppDeps;
 }

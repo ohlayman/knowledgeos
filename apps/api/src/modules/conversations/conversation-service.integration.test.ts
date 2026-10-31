@@ -86,7 +86,7 @@ async function createService(chat: ChatProvider, retrieval: Partial<RetrievalSer
       retrieve: vi.fn().mockResolvedValue(retrievalResult()),
       ...retrieval,
     } as unknown as RetrievalService,
-    chat,
+    async () => chat,
   );
   const conversation = await service.create({ title });
   conversationIds.push(conversation.id);
@@ -244,7 +244,7 @@ describe.skipIf(!enabled)('ConversationService', () => {
       conversations,
       chunks,
       { retrieve: vi.fn().mockResolvedValue(retrievalResult()) } as unknown as RetrievalService,
-      chat,
+      async () => chat,
     );
     const conversation = await service.create({});
     conversationIds.push(conversation.id);

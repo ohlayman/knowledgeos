@@ -1,8 +1,9 @@
 import { PrismaClient } from '@prisma/client';
 
 export { Prisma, PrismaClient } from '@prisma/client';
-export type { JobStatus, SourceType, VersionStatus } from '@prisma/client';
+export type { JobStatus, ProviderKind, SourceType, VersionStatus } from '@prisma/client';
 export * from './repositories/index.js';
+export * from './provider-loader.js';
 
 export function createPrismaClient(databaseUrl?: string): PrismaClient {
   if (!databaseUrl) {

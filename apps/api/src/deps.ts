@@ -5,6 +5,7 @@ import {
   createPrismaClient,
   DocumentRepository,
   JobRepository,
+  loadProviderSettings,
   type PrismaClient,
 } from '@kos/database';
 import { collectionName, createEmbeddingProvider } from '@kos/embeddings';
@@ -12,11 +13,14 @@ import { createChatProvider } from '@kos/llm';
 import { cancelIngest, createIngestQueue, enqueueIngest, retryIngest } from '@kos/queue';
 import { QdrantStore, RetrievalService } from '@kos/retrieval';
 import type { Env } from '@kos/shared';
-import { LocalStorageAdapter, type StorageAdapter } from '@kos/storage';
+import { LocalStorageAdapter, resolveDataDir, type StorageAdapter } from '@kos/storage';
 import { DocumentService, type IngestEnqueuer } from './modules/documents/document-service.js';
 import { createUrlFetcher, type UrlFetcher } from './modules/documents/url-fetcher.js';
 import { JobService } from './modules/jobs/job-service.js';
 import { ConversationService } from './modules/conversations/conversation-service.js';
+import { ChunkService } from './modules/chunks/chunk-service.js';
+import { MetricsService } from './modules/metrics/metrics-service.js';
+import { SettingsService } from './modules/settings/settings-service.js';
 
 export interface Pingable {
   ping(): Promise<void>;
@@ -38,12 +42,15 @@ export interface AppDeps {
   jobs: JobService;
   retrieval: RetrievalService;
   conversations: ConversationService;
+  chunks: ChunkService;
+  settings: SettingsService;
+  metrics: MetricsService;
   urlFetcher: UrlFetcher;
 }
 
-export function createDeps(env: Env): AppDeps {
+export async function createDeps(env: Env): Promise<AppDeps> {
   const prisma = createPrismaClient(env.DATABASE_URL);
-  const storage = new LocalStorageAdapter(env.DATA_DIR);
+  const storage = new LocalStorageAdapter(resolveDataDir(env.DATA_DIR, import.meta.url));
   const queue = createIngestQueue(env.REDIS_URL);
 
   const enqueue: IngestEnqueuer = async (data) => {
@@ -62,24 +69,32 @@ export function createDeps(env: Env): AppDeps {
     },
     cancel: (jobId) => cancelIngest(queue, jobId),
   });
+  const storedEmbedding = await loadProviderSettings(prisma, env.APP_ENCRYPTION_KEY, 'embedding');
+  const embeddingModel = storedEmbedding?.model ?? env.EMBEDDING_MODEL;
+  const embeddingDim = storedEmbedding?.dim ?? env.EMBEDDING_DIM;
   const qdrantStore = new QdrantStore({
     url: env.QDRANT_URL,
     ...(env.QDRANT_API_KEY ? { apiKey: env.QDRANT_API_KEY } : {}),
-    collection: collectionName(env.EMBEDDING_MODEL, env.EMBEDDING_DIM),
-    vectorSize: env.EMBEDDING_DIM,
+    collection: collectionName(embeddingModel, embeddingDim),
+    vectorSize: embeddingDim,
   });
   const retrieval = new RetrievalService({
     prisma,
-    embeddings: createEmbeddingProvider(env),
+    embeddings: createEmbeddingProvider(env, storedEmbedding),
     qdrant: qdrantStore,
   });
+  const chatProvider = async () =>
+    createChatProvider(env, await loadProviderSettings(prisma, env.APP_ENCRYPTION_KEY, 'llm'));
   const conversations = new ConversationService(
     prisma,
     new ConversationRepository(prisma),
     new ChunkRepository(prisma),
     retrieval,
-    createChatProvider(env),
+    chatProvider,
   );
+  const chunks = new ChunkService(prisma, new ChunkRepository(prisma));
+  const settings = new SettingsService(prisma, env);
+  const metrics = new MetricsService(prisma);
   const urlFetcher = createUrlFetcher();
 
   const redis = new Redis(env.REDIS_URL, {
@@ -101,6 +116,9 @@ export function createDeps(env: Env): AppDeps {
     jobs,
     retrieval,
     conversations,
+    chunks,
+    settings,
+    metrics,
     urlFetcher,
     db: {
       async ping() {

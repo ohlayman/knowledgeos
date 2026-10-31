@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildTsQuery, rrf } from './rrf.js';
+import { buildTsQuery, buildTsQueryLoose, rrf } from './rrf.js';
 
 describe('rrf', () => {
   it('按倒数排名融合多路结果', () => {
@@ -40,12 +40,12 @@ describe('buildTsQuery', () => {
     expect(buildTsQuery('Hybrid Retrieval')).toBe('hybrid & retrieval');
   });
 
-  it('token 过多时改为 4 个一组的 OR 分组', () => {
-    const query = buildTsQuery('一一二二三三四四五五六六七七八八九九十十');
-    const groups = query.split(' | ');
-
-    expect(groups.length).toBeGreaterThan(1);
-    expect(groups[0]!.split(' & ')).toHaveLength(4);
+  it('长问题生成 AND 查询，并提供 OR 兜底', () => {
+    const query = buildTsQuery('混合检索使用哪两路召回');
+    expect(query).toBe('混合 & 合检 & 检索 & 索使 & 使用 & 用哪 & 哪两 & 两路 & 路召 & 召回');
+    expect(buildTsQueryLoose('混合检索使用哪两路召回')).toBe(
+      '混合 | 合检 | 检索 | 索使 | 使用 | 用哪 | 哪两 | 两路 | 路召 | 召回',
+    );
   });
 
   it('空问题返回空字符串', () => {

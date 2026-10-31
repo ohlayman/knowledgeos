@@ -59,7 +59,10 @@ describe.skipIf(!enabled)('POST /api/v1/documents/files batch import', () => {
       documents: new DocumentService(new DocumentRepository(prisma), storage),
       retrieval: {} as AppDeps['retrieval'],
       conversations: {} as AppDeps['conversations'],
+      settings: {} as AppDeps['settings'],
+      metrics: {} as AppDeps['metrics'],
       jobs: {} as AppDeps['jobs'],
+      chunks: {} as AppDeps['chunks'],
       urlFetcher: {
         fetch: async () => {
           throw new Error('unused in batch import test');

@@ -5,12 +5,13 @@ import {
   createPrismaClient,
   DocumentRepository,
   JobRepository,
+  loadProviderSettings,
 } from '@kos/database';
 import { createIngestQueue, createIngestWorker, enqueueIngest } from '@kos/queue';
 import { collectionName, createEmbeddingProvider } from '@kos/embeddings';
 import { QdrantStore } from '@kos/retrieval';
 import { loadEnv } from '@kos/shared';
-import { LocalStorageAdapter } from '@kos/storage';
+import { LocalStorageAdapter, resolveDataDir } from '@kos/storage';
 import { runPipeline } from './pipeline.js';
 import { reconcileOnce, type ReconcileQueue } from './reconcile.js';
 
@@ -29,11 +30,14 @@ if (interrupted > 0) {
   console.warn(`marked ${interrupted} interrupted job(s) as failed`);
 }
 
+const storedEmbedding = await loadProviderSettings(prisma, env.APP_ENCRYPTION_KEY, 'embedding');
+const embeddingModel = storedEmbedding?.model ?? env.EMBEDDING_MODEL;
+const embeddingDim = storedEmbedding?.dim ?? env.EMBEDDING_DIM;
 const qdrant = new QdrantStore({
   url: env.QDRANT_URL,
   ...(env.QDRANT_API_KEY ? { apiKey: env.QDRANT_API_KEY } : {}),
-  collection: collectionName(env.EMBEDDING_MODEL, env.EMBEDDING_DIM),
-  vectorSize: env.EMBEDDING_DIM,
+  collection: collectionName(embeddingModel, embeddingDim),
+  vectorSize: embeddingDim,
 });
 
 const deps = {
@@ -41,8 +45,8 @@ const deps = {
   documents: new DocumentRepository(prisma),
   chunks: new ChunkRepository(prisma),
   jobs: new JobRepository(prisma),
-  storage: new LocalStorageAdapter(env.DATA_DIR),
-  embeddings: createEmbeddingProvider(env),
+  storage: new LocalStorageAdapter(resolveDataDir(env.DATA_DIR, import.meta.url)),
+  embeddings: createEmbeddingProvider(env, storedEmbedding),
   qdrant,
 };
 

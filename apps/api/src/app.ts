@@ -4,9 +4,12 @@ import helmet from '@fastify/helmet';
 import Fastify, { type FastifyInstance } from 'fastify';
 import { ApiError, toErrorEnvelope } from '@kos/shared';
 import type { AppDeps } from './deps.js';
+import { chunkRoutes } from './modules/chunks/routes.js';
 import { conversationRoutes } from './modules/conversations/routes.js';
 import { documentRoutes } from './modules/documents/routes.js';
 import { jobRoutes } from './modules/jobs/routes.js';
+import { metricsRoutes } from './modules/metrics/routes.js';
+import { settingsRoutes } from './modules/settings/routes.js';
 import { retrievalRoutes } from './modules/retrieval/routes.js';
 import { healthRoutes } from './routes/health.js';
 
@@ -37,6 +40,9 @@ export function buildApp(deps: AppDeps): FastifyInstance {
   app.register(jobRoutes, { deps });
   app.register(retrievalRoutes, { deps });
   app.register(conversationRoutes, { deps });
+  app.register(settingsRoutes, { deps });
+  app.register(metricsRoutes, { deps });
+  app.register(chunkRoutes, { deps });
 
   return app;
 }

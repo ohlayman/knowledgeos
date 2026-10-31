@@ -33,21 +33,18 @@ export function rrf(lists: RankedItem[][], k = 60): FusedItem[] {
     );
 }
 
+function queryTokens(question: string, maxTokens: number): string[] {
+  return buildSearchText(question)
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, maxTokens)
+    .map((token) => token.replace(/'/g, "''"));
+}
+
 export function buildTsQuery(question: string, maxTokens = 24): string {
-  const tokens = buildSearchText(question).split(' ').filter(Boolean).slice(0, maxTokens);
-  if (tokens.length === 0) {
-    return '';
-  }
+  return queryTokens(question, maxTokens).join(' & ');
+}
 
-  const escaped = tokens.map((token) => token.replace(/'/g, "''"));
-  if (escaped.length <= 4) {
-    return escaped.join(' & ');
-  }
-
-  const groups: string[] = [];
-  for (let index = 0; index < escaped.length; index += 4) {
-    groups.push(escaped.slice(index, index + 4).join(' & '));
-  }
-
-  return groups.join(' | ');
+export function buildTsQueryLoose(question: string, maxTokens = 24): string {
+  return queryTokens(question, maxTokens).join(' | ');
 }

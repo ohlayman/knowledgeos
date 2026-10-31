@@ -52,9 +52,7 @@ const metrics = await evaluateRetrieval(cases, async (question) => {
 console.log(JSON.stringify(metrics, null, 2));
 
 // 评测语料不进入用户知识库：评估结束立即清理。
-await prisma.document.deleteMany({
-  where: { sources: { some: { source: { fingerprint: { startsWith: fingerprintPrefix } } } } },
-});
+await prisma.document.deleteMany({ where: { id: { in: [...bySlug.values()] } } });
 await prisma.source.deleteMany({ where: { fingerprint: { startsWith: fingerprintPrefix } } });
 await prisma.$disconnect();
 

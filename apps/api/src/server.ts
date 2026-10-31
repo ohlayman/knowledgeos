@@ -7,7 +7,7 @@ import { createDeps } from './deps.js';
 loadDotenv({ path: fileURLToPath(new URL('../../../.env', import.meta.url)) });
 
 const env = loadEnv();
-const deps = createDeps(env);
+const deps = await createDeps(env);
 const app = buildApp(deps);
 
 async function shutdown(signal: string): Promise<void> {

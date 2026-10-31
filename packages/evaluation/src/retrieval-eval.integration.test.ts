@@ -18,6 +18,7 @@ const fingerprintPrefix = `eval://${runId}`;
 const collection = `kos_eval_${runId}`;
 const qdrant = new QdrantStore({ url: process.env.QDRANT_URL ?? '', collection, vectorSize: 32 });
 const startedAt = new Date();
+const seededDocumentIds: string[] = [];
 
 describe.skipIf(!enabled)('retrieval evaluation', () => {
   let cases: EvalCase[];
@@ -35,6 +36,7 @@ describe.skipIf(!enabled)('retrieval evaluation', () => {
       fingerprintPrefix,
     });
     documentIds = [...bySlug.values()];
+    seededDocumentIds.push(...documentIds);
     cases = loadDataset().flatMap((item) => {
       const documentId = bySlug.get(item.expectedSlug);
       return documentId
@@ -53,9 +55,9 @@ describe.skipIf(!enabled)('retrieval evaluation', () => {
 
   afterAll(async () => {
     await qdrant.deleteCollection().catch(() => undefined);
-    await prisma.document.deleteMany({
-      where: { sources: { some: { source: { fingerprint: { startsWith: fingerprintPrefix } } } } },
-    });
+    if (seededDocumentIds.length > 0) {
+      await prisma.document.deleteMany({ where: { id: { in: seededDocumentIds } } });
+    }
     await prisma.source.deleteMany({ where: { fingerprint: { startsWith: fingerprintPrefix } } });
     await prisma.retrievalRun.deleteMany({ where: { createdAt: { gte: startedAt } } });
     await prisma.$disconnect();

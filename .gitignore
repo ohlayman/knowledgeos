@@ -10,3 +10,4 @@ test-results/
 .superpowers/
 .playwright-mcp/
 *.log
+apps/web/dist/

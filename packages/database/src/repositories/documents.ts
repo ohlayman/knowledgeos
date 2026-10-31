@@ -74,7 +74,7 @@ export class DocumentRepository {
     contentHash: string,
   ): Promise<{ documentId: string; versionId: string; isCurrent: boolean } | null> {
     const version = await this.prisma.documentVersion.findFirst({
-      where: { contentHash },
+      where: { contentHash, document: { isDeleted: false } },
       select: { id: true, documentId: true, isCurrent: true },
       orderBy: { createdAt: 'desc' },
     });
@@ -88,7 +88,7 @@ export class DocumentRepository {
     fileHash: string,
   ): Promise<{ documentId: string; versionId: string } | null> {
     const version = await this.prisma.documentVersion.findFirst({
-      where: { fileHash },
+      where: { fileHash, document: { isDeleted: false } },
       select: { id: true, documentId: true },
       orderBy: { createdAt: 'desc' },
     });

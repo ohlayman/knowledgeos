@@ -43,6 +43,9 @@ function fakeDeps(): AppDeps {
         sink.done({ status: 'complete' });
       }),
     } as unknown as AppDeps['conversations'],
+    settings: {} as AppDeps['settings'],
+    metrics: {} as AppDeps['metrics'],
+    chunks: {} as AppDeps['chunks'],
     urlFetcher: { fetch: vi.fn() },
   } as AppDeps;
 }
