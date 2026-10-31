@@ -1,6 +1,6 @@
 import { basename, extname } from 'node:path';
 import type { DocumentRepository } from '@kos/database';
-import { contentHash, fileHash } from '@kos/shared';
+import { contentHash, fileHash, normalizeUrl } from '@kos/shared';
 import { buildObjectKey, type StorageAdapter } from '@kos/storage';
 
 export interface IngestFileInput {
@@ -14,6 +14,13 @@ export interface IngestTextInput {
   title: string;
   content: string;
   tags: string[];
+}
+
+export interface IngestUrlInput {
+  url: string;
+  finalUrl: string;
+  buffer: Buffer;
+  mimeType: string;
 }
 
 export interface IngestFileResult {
@@ -140,6 +147,67 @@ export class DocumentService {
         storageSize: content.length,
         mimeType: 'text/markdown',
         originalFilename: `${input.title}.md`,
+      },
+    });
+
+    return { status: 'queued', ...created };
+  }
+
+  async ingestUrl(input: IngestUrlInput): Promise<IngestFileResult> {
+    const hash = fileHash(input.buffer);
+    const fingerprint = normalizeUrl(input.url);
+    const source = {
+      type: 'url' as const,
+      fingerprint,
+      identifier: input.url,
+      metadata: { finalUrl: input.finalUrl },
+    };
+
+    const existing = await this.documents.findVersionByFileHash(hash);
+    if (existing) {
+      await this.documents.attachSource(existing.documentId, source);
+      return {
+        status: 'duplicate',
+        documentId: existing.documentId,
+        versionId: existing.versionId,
+      };
+    }
+
+    const storageKey = buildObjectKey(hash);
+    await this.storage.put(storageKey, input.buffer, input.mimeType);
+
+    const title = new URL(input.url).hostname;
+    const existingDocument = await this.documents.findDocumentBySource('url', fingerprint);
+    if (existingDocument) {
+      const appended = await this.documents.appendVersion(existingDocument.documentId, {
+        contentHash: hash,
+        fileHash: hash,
+        storageKey,
+        storageSize: input.buffer.length,
+        mimeType: input.mimeType,
+        originalFilename: input.url,
+        sourceId: existingDocument.sourceId,
+      });
+
+      return {
+        status: 'queued',
+        documentId: existingDocument.documentId,
+        versionId: appended.versionId,
+        jobId: appended.jobId,
+      };
+    }
+
+    const created = await this.documents.createWithVersion({
+      title,
+      tags: [],
+      source,
+      version: {
+        contentHash: hash,
+        fileHash: hash,
+        storageKey,
+        storageSize: input.buffer.length,
+        mimeType: input.mimeType,
+        originalFilename: input.url,
       },
     });
 

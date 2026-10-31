@@ -28,7 +28,12 @@ function fakeDeps(): AppDeps {
     },
     prisma: {} as AppDeps['prisma'],
     storage: {} as AppDeps['storage'],
-    documents: { ingestFile: vi.fn() } as unknown as AppDeps['documents'],
+    documents: {
+      ingestFile: vi.fn(),
+      ingestText: vi.fn(),
+      ingestUrl: vi.fn(),
+    } as unknown as AppDeps['documents'],
+    urlFetcher: { fetch: vi.fn() } as unknown as AppDeps['urlFetcher'],
   };
 }
 

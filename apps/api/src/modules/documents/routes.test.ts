@@ -1,4 +1,5 @@
 import FormData from 'form-data';
+import { ApiError } from '@kos/shared';
 import { describe, expect, it, vi } from 'vitest';
 import type { AppDeps } from '../../deps.js';
 import { buildApp } from '../../app.js';
@@ -38,7 +39,11 @@ function fakeDeps(): AppDeps {
     documents: {
       ingestFile: vi.fn(),
       ingestText: vi.fn(),
+      ingestUrl: vi.fn(),
     } as unknown as AppDeps['documents'],
+    urlFetcher: {
+      fetch: vi.fn(),
+    } as unknown as AppDeps['urlFetcher'],
   };
 }
 
@@ -254,6 +259,101 @@ describe('POST /api/v1/documents/text', () => {
     expect(response.statusCode).toBe(400);
     expect(response.json().error.code).toBe('INVALID_ARGUMENT');
     expect(deps.documents.ingestText).not.toHaveBeenCalled();
+    await app.close();
+  });
+});
+
+describe('POST /api/v1/documents/urls', () => {
+  it('fetches and ingests a URL', async () => {
+    const deps = fakeDeps();
+    vi.mocked(deps.urlFetcher.fetch).mockResolvedValue({
+      finalUrl: 'https://example.com/',
+      mimeType: 'text/html',
+      buffer: Buffer.from('<html><body>hello</body></html>'),
+    });
+    vi.mocked(deps.documents.ingestUrl).mockResolvedValue({
+      status: 'queued',
+      documentId: 'doc-1',
+      versionId: 'ver-1',
+      jobId: 'job-1',
+    });
+    const app = buildApp(deps);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/documents/urls',
+      payload: { urls: ['https://example.com'] },
+    });
+
+    expect(response.statusCode).toBe(202);
+    expect(response.json()).toEqual({
+      items: [
+        {
+          fileName: 'https://example.com',
+          status: 'queued',
+          documentId: 'doc-1',
+          versionId: 'ver-1',
+          jobId: 'job-1',
+        },
+      ],
+    });
+    expect(deps.documents.ingestUrl).toHaveBeenCalledWith({
+      url: 'https://example.com',
+      finalUrl: 'https://example.com/',
+      mimeType: 'text/html',
+      buffer: expect.any(Buffer),
+    });
+    await app.close();
+  });
+
+  it('marks an SSRF-blocked URL as failed', async () => {
+    const deps = fakeDeps();
+    vi.mocked(deps.urlFetcher.fetch).mockRejectedValue(new ApiError('SSRF_BLOCKED'));
+    const app = buildApp(deps);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/documents/urls',
+      payload: { urls: ['http://127.0.0.1'] },
+    });
+
+    expect(response.statusCode).toBe(202);
+    expect(response.json().items[0]).toMatchObject({
+      fileName: 'http://127.0.0.1',
+      status: 'failed',
+      errorCode: 'SSRF_BLOCKED',
+    });
+    expect(deps.documents.ingestUrl).not.toHaveBeenCalled();
+    await app.close();
+  });
+
+  it('rejects more than 20 URLs', async () => {
+    const app = buildApp(fakeDeps());
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/documents/urls',
+      payload: {
+        urls: Array.from({ length: 21 }, (_, index) => `https://example.com/${index}`),
+      },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json().error.code).toBe('BATCH_TOO_LARGE');
+    await app.close();
+  });
+
+  it('rejects an invalid URL', async () => {
+    const app = buildApp(fakeDeps());
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/documents/urls',
+      payload: { urls: ['not-a-url'] },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json().error.code).toBe('INVALID_ARGUMENT');
     await app.close();
   });
 });

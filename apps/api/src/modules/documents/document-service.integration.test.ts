@@ -103,4 +103,46 @@ describe.skipIf(!enabled)('DocumentService', () => {
       where: { fingerprint: { in: [title.toLowerCase(), copyTitle.toLowerCase()] } },
     });
   });
+
+  it('ingests a URL, dedupes content, and appends versions by URL', async () => {
+    const url = `https://example.com/notes/${randomUUID()}`;
+    const copyUrl = `https://example.com/copy/${randomUUID()}`;
+    const alpha = Buffer.from('<html><body>alpha</body></html>');
+    const beta = Buffer.from('<html><body>beta</body></html>');
+
+    const first = await service.ingestUrl({
+      url,
+      finalUrl: url,
+      buffer: alpha,
+      mimeType: 'text/html',
+    });
+    expect(first.status).toBe('queued');
+
+    const duplicate = await service.ingestUrl({
+      url: copyUrl,
+      finalUrl: copyUrl,
+      buffer: alpha,
+      mimeType: 'text/html',
+    });
+    expect(duplicate.status).toBe('duplicate');
+    expect(duplicate.documentId).toBe(first.documentId);
+
+    const second = await service.ingestUrl({
+      url,
+      finalUrl: url,
+      buffer: beta,
+      mimeType: 'text/html',
+    });
+    expect(second.status).toBe('queued');
+    expect(second.documentId).toBe(first.documentId);
+
+    const detail = await new DocumentRepository(prisma).getById(first.documentId);
+    expect(detail?.currentVersion?.versionNo).toBe(2);
+    expect(detail?.sources).toHaveLength(2);
+
+    await prisma.document.deleteMany({ where: { id: first.documentId } });
+    await prisma.source.deleteMany({
+      where: { fingerprint: { in: [url, copyUrl] } },
+    });
+  });
 });
