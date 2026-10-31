@@ -68,4 +68,39 @@ describe.skipIf(!enabled)('DocumentService', () => {
     expect(detail?.tags).toEqual(['test']);
     expect(detail?.currentVersion?.versionNo).toBe(2);
   });
+
+  it('ingests manual text, dedupes content, and appends versions by title', async () => {
+    const title = `Manual ${randomUUID()}`;
+    const copyTitle = `${title} copy`;
+    const content = `alpha-${randomUUID()}`;
+    const nextContent = `beta-${randomUUID()}`;
+
+    const first = await service.ingestText({ title, content, tags: ['manual'] });
+    expect(first.status).toBe('queued');
+
+    const duplicate = await service.ingestText({
+      title: copyTitle,
+      content,
+      tags: [],
+    });
+    expect(duplicate.status).toBe('duplicate');
+    expect(duplicate.documentId).toBe(first.documentId);
+
+    const second = await service.ingestText({
+      title,
+      content: nextContent,
+      tags: [],
+    });
+    expect(second.status).toBe('queued');
+    expect(second.documentId).toBe(first.documentId);
+
+    const detail = await new DocumentRepository(prisma).getById(first.documentId);
+    expect(detail?.currentVersion?.versionNo).toBe(2);
+    expect(detail?.sources).toHaveLength(2);
+
+    await prisma.document.deleteMany({ where: { id: first.documentId } });
+    await prisma.source.deleteMany({
+      where: { fingerprint: { in: [title.toLowerCase(), copyTitle.toLowerCase()] } },
+    });
+  });
 });

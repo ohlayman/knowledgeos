@@ -202,6 +202,54 @@ export class DocumentRepository {
     });
   }
 
+  async attachSource(
+    documentId: string,
+    source: {
+      type: SourceType;
+      fingerprint: string;
+      identifier: string;
+      title?: string;
+      metadata?: Prisma.InputJsonValue;
+    },
+  ): Promise<{ sourceId: string }> {
+    return this.prisma.$transaction(async (tx) => {
+      const record = await tx.source.upsert({
+        where: {
+          type_fingerprint: {
+            type: source.type,
+            fingerprint: source.fingerprint,
+          },
+        },
+        update: {
+          identifier: source.identifier,
+          title: source.title,
+          lastSeenAt: new Date(),
+        },
+        create: {
+          id: randomUUID(),
+          type: source.type,
+          fingerprint: source.fingerprint,
+          identifier: source.identifier,
+          title: source.title,
+          metadata: source.metadata,
+        },
+      });
+
+      await tx.documentSource.upsert({
+        where: {
+          documentId_sourceId: {
+            documentId,
+            sourceId: record.id,
+          },
+        },
+        update: { lastSeenAt: new Date() },
+        create: { documentId, sourceId: record.id },
+      });
+
+      return { sourceId: record.id };
+    });
+  }
+
   async appendVersion(
     documentId: string,
     input: AppendVersionInput,

@@ -37,6 +37,7 @@ function fakeDeps(): AppDeps {
     storage: {} as AppDeps['storage'],
     documents: {
       ingestFile: vi.fn(),
+      ingestText: vi.fn(),
     } as unknown as AppDeps['documents'],
   };
 }
@@ -179,6 +180,80 @@ describe('POST /api/v1/documents/files', () => {
 
     expect(response.statusCode).toBe(400);
     expect(response.json().error.code).toBe('BATCH_TOO_LARGE');
+    await app.close();
+  });
+});
+
+describe('POST /api/v1/documents/text', () => {
+  it('ingests manual text and returns a queued item', async () => {
+    const deps = fakeDeps();
+    vi.mocked(deps.documents.ingestText).mockResolvedValue({
+      status: 'queued',
+      documentId: 'doc-1',
+      versionId: 'ver-1',
+      jobId: 'job-1',
+    });
+    const app = buildApp(deps);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/documents/text',
+      payload: {
+        title: 'My note',
+        content: 'hello world',
+        tags: ['manual'],
+      },
+    });
+
+    expect(response.statusCode).toBe(202);
+    expect(response.json()).toEqual({
+      item: {
+        status: 'queued',
+        documentId: 'doc-1',
+        versionId: 'ver-1',
+        jobId: 'job-1',
+      },
+    });
+    expect(deps.documents.ingestText).toHaveBeenCalledWith({
+      title: 'My note',
+      content: 'hello world',
+      tags: ['manual'],
+    });
+    await app.close();
+  });
+
+  it('rejects content over 200000 characters', async () => {
+    const deps = fakeDeps();
+    const app = buildApp(deps);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/documents/text',
+      payload: {
+        title: 'Too long',
+        content: 'x'.repeat(200_001),
+      },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json().error.code).toBe('TEXT_TOO_LONG');
+    expect(deps.documents.ingestText).not.toHaveBeenCalled();
+    await app.close();
+  });
+
+  it('rejects a missing title', async () => {
+    const deps = fakeDeps();
+    const app = buildApp(deps);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/documents/text',
+      payload: { content: 'hello' },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json().error.code).toBe('INVALID_ARGUMENT');
+    expect(deps.documents.ingestText).not.toHaveBeenCalled();
     await app.close();
   });
 });

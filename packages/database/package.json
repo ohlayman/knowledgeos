@@ -19,9 +19,9 @@
     "migrate:status": "prisma migrate status --schema prisma/schema.prisma",
     "seed": "tsx prisma/seed.ts",
     "build": "prisma generate --schema prisma/schema.prisma && tsc -p tsconfig.build.json",
-    "typecheck": "prisma generate --schema prisma/schema.prisma && tsc -p tsconfig.json --noEmit",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint src prisma",
-    "test": "prisma generate --schema prisma/schema.prisma && vitest run"
+    "test": "vitest run"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

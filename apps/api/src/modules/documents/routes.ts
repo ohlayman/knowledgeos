@@ -1,6 +1,6 @@
 import multipart from '@fastify/multipart';
 import type { FastifyPluginAsync } from 'fastify';
-import { ApiError, LIMITS } from '@kos/shared';
+import { ApiError, LIMITS, TextDocumentInputSchema } from '@kos/shared';
 import type { AppDeps } from '../../deps.js';
 import { detectFileType } from './file-type.js';
 
@@ -81,5 +81,26 @@ export const documentRoutes: FastifyPluginAsync<{ deps: AppDeps }> = async (app,
     }
 
     return reply.status(202).send({ items });
+  });
+
+  app.post('/api/v1/documents/text', async (request, reply) => {
+    const parsed = TextDocumentInputSchema.safeParse(request.body);
+    if (!parsed.success) {
+      const contentTooLong = parsed.error.issues.some(
+        (issue) => issue.path[0] === 'content' && issue.code === 'too_big',
+      );
+      throw new ApiError(
+        contentTooLong ? 'TEXT_TOO_LONG' : 'INVALID_ARGUMENT',
+        contentTooLong ? undefined : '标题、正文或标签不合法',
+      );
+    }
+
+    const result = await opts.deps.documents.ingestText({
+      title: parsed.data.title,
+      content: parsed.data.content,
+      tags: parsed.data.tags,
+    });
+
+    return reply.status(202).send({ item: result });
   });
 };

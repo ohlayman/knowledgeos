@@ -7,9 +7,9 @@
 
 ## 1. 当前结论
 
-- **当前阶段：** M2 导入与解析进行中：存储、哈希、文件上传 API 已完成；下一步手动文本与 URL 导入。
+- **当前阶段：** M2 导入与解析进行中：存储、哈希、文件上传、手动文本导入已完成；下一步 URL 导入与 SSRF。
 - **当前版本：** V1。
-- **下一步：** 实现 M2-T4 手动文本导入 API。
+- **下一步：** 实现 M2-T5 URL 导入 API 与 SSRF 防护。
 - **环境说明：** 本机原生 PostgreSQL 占用 5432，compose 的 Postgres 映射到宿主 5433；`.env.example` 已同步。
 - **阻塞：** 无。
 
@@ -68,7 +68,7 @@
 | M2-T1 StorageAdapter | DONE | 2026-11-01 | 2026-11-01 | `@kos/storage` 6/6 单测通过：原子写、读取流、存在/删除、路径穿越拒绝 |
 | M2-T2 哈希与规范化 | DONE | 2026-11-01 | 2026-11-01 | `normalizeText` / `contentHash` / `fileHash`；7/7 测试通过 |
 | M2-T3 文件上传 API | DONE | 2026-11-01 | 2026-11-01 | magic bytes、20MB/200 文件限制、fileHash 去重、同名文件追加版本；真实上传冒烟通过 |
-| M2-T4 手动文本 API | TODO | — | — | — |
+| M2-T4 手动文本 API | DONE | 2026-11-01 | 2026-11-01 | Zod 校验、200k 字符上限、contentHash 去重、同名标题追加版本、不同标题同内容追加来源 |
 | M2-T5 URL 导入 + SSRF | TODO | — | — | — |
 | M2-T6 Markdown 解析 | TODO | — | — | — |
 | M2-T7 纯文本解析 | TODO | — | — | — |
@@ -175,8 +175,8 @@
 | 首 token P95 | TODO | — | ≤ 2.5s |
 | 非 LLM 接口 P95 | TODO | — | ≤ 300ms |
 | 引用可解析率 | TODO | — | 100% |
-| 单测 | DONE | 28/28 通过（shared 13 + api 9 + storage 6） | 全绿 |
-| 集成 | DONE | 7/7 通过（数据库仓储 5 + Qdrant 1 + 文档入库 1） | 全绿 |
+| 单测 | DONE | 31/31 通过（shared 13 + api 12 + storage 6） | 全绿 |
+| 集成 | DONE | 8/8 通过（数据库仓储 5 + Qdrant 1 + 文档入库 2） | 全绿 |
 | E2E | TODO | — | 全绿 |
 
 ---
@@ -193,3 +193,5 @@
 | 2026-11-01 | M1-T3 完成：四类仓储与 5 条集成测试；补 `documents.tags` 字段与 GIN 索引迁移 |
 | 2026-11-01 | M2-T1/T2 完成：本地 StorageAdapter 与哈希/规范化工具；单测 24/24 |
 | 2026-11-01 | M2-T3 完成：文件上传 API（magic bytes、大小/数量限制、去重与版本追加）；单测 28/28、集成 7/7 |
+| 2026-11-01 | M2-T4 完成：手动文本导入、Zod 校验、contentHash 去重与来源追加；单测 31/31、集成 8/8 |
+| 2026-11-01 | 构建稳定性：turbo 让 typecheck/test 依赖同包 build，避免 Windows 下并发 `prisma generate` 的 DLL 锁冲突 |

@@ -1,12 +1,18 @@
 import { basename, extname } from 'node:path';
 import type { DocumentRepository } from '@kos/database';
-import { fileHash } from '@kos/shared';
+import { contentHash, fileHash } from '@kos/shared';
 import { buildObjectKey, type StorageAdapter } from '@kos/storage';
 
 export interface IngestFileInput {
   fileName: string;
   buffer: Buffer;
   mimeType: string;
+  tags: string[];
+}
+
+export interface IngestTextInput {
+  title: string;
+  content: string;
   tags: string[];
 }
 
@@ -76,6 +82,64 @@ export class DocumentService {
         storageSize: input.buffer.length,
         mimeType: input.mimeType,
         originalFilename: input.fileName,
+      },
+    });
+
+    return { status: 'queued', ...created };
+  }
+
+  async ingestText(input: IngestTextInput): Promise<IngestFileResult> {
+    const hash = contentHash(input.content);
+    const fingerprint = input.title.trim().toLowerCase();
+    const source = {
+      type: 'manual' as const,
+      fingerprint,
+      identifier: input.title,
+    };
+
+    const existing = await this.documents.findVersionByContentHash(hash);
+    if (existing) {
+      await this.documents.attachSource(existing.documentId, source);
+      return {
+        status: 'duplicate',
+        documentId: existing.documentId,
+        versionId: existing.versionId,
+      };
+    }
+
+    const storageKey = buildObjectKey(hash);
+    const content = Buffer.from(input.content, 'utf8');
+    await this.storage.put(storageKey, content, 'text/markdown');
+
+    const existingDocument = await this.documents.findDocumentBySource('manual', fingerprint);
+    if (existingDocument) {
+      const appended = await this.documents.appendVersion(existingDocument.documentId, {
+        contentHash: hash,
+        storageKey,
+        storageSize: content.length,
+        mimeType: 'text/markdown',
+        originalFilename: `${input.title}.md`,
+        sourceId: existingDocument.sourceId,
+      });
+
+      return {
+        status: 'queued',
+        documentId: existingDocument.documentId,
+        versionId: appended.versionId,
+        jobId: appended.jobId,
+      };
+    }
+
+    const created = await this.documents.createWithVersion({
+      title: input.title,
+      tags: input.tags,
+      source,
+      version: {
+        contentHash: hash,
+        storageKey,
+        storageSize: content.length,
+        mimeType: 'text/markdown',
+        originalFilename: `${input.title}.md`,
       },
     });
 
