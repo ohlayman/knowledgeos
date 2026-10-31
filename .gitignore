@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.turbo/
+.env
+.env.local
+data/
+coverage/
+playwright-report/
+test-results/
+.superpowers/
+.playwright-mcp/
+*.log

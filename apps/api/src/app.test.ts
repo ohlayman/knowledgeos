@@ -1,0 +1,86 @@
+import { describe, expect, it, vi } from 'vitest';
+import { buildApp } from './app.js';
+
+function fakeDeps() {
+  return {
+    env: {
+      NODE_ENV: 'test' as const,
+      HOST: '127.0.0.1',
+      PORT: 3000,
+      WEB_ORIGIN: 'http://localhost:5173',
+      DATABASE_URL: 'postgresql://user:pass@localhost:5432/knowledgeos',
+      REDIS_URL: 'redis://localhost:6379',
+      QDRANT_URL: 'http://localhost:6333',
+      DATA_DIR: './data',
+      LOG_LEVEL: 'fatal' as const,
+    },
+    db: {
+      ping: vi.fn().mockResolvedValue(undefined),
+      close: vi.fn().mockResolvedValue(undefined),
+    },
+    redis: {
+      ping: vi.fn().mockResolvedValue(undefined),
+      close: vi.fn().mockResolvedValue(undefined),
+    },
+    qdrant: {
+      ping: vi.fn().mockResolvedValue(undefined),
+    },
+  };
+}
+
+describe('health routes', () => {
+  it('returns 200 on liveness', async () => {
+    const app = buildApp(fakeDeps());
+
+    const response = await app.inject({ method: 'GET', url: '/api/v1/health/live' });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ status: 'ok' });
+    await app.close();
+  });
+
+  it('returns 200 on readiness when all dependencies respond', async () => {
+    const app = buildApp(fakeDeps());
+
+    const response = await app.inject({ method: 'GET', url: '/api/v1/health/ready' });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      status: 'ok',
+      checks: { database: 'ok', redis: 'ok', qdrant: 'ok' },
+    });
+    await app.close();
+  });
+
+  it('returns 503 and names the failing dependency', async () => {
+    const deps = fakeDeps();
+    deps.db.ping.mockRejectedValueOnce(new Error('database down'));
+    const app = buildApp(deps);
+
+    const response = await app.inject({ method: 'GET', url: '/api/v1/health/ready' });
+
+    expect(response.statusCode).toBe(503);
+    expect(response.json()).toMatchObject({
+      status: 'unavailable',
+      failed: ['database'],
+    });
+    await app.close();
+  });
+
+  it('uses the error envelope for unknown routes', async () => {
+    const app = buildApp(fakeDeps());
+
+    const response = await app.inject({ method: 'GET', url: '/api/v1/unknown' });
+
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toEqual({
+      error: {
+        code: 'NOT_FOUND',
+        message: expect.any(String),
+        retryable: false,
+        requestId: expect.any(String),
+      },
+    });
+    await app.close();
+  });
+});
