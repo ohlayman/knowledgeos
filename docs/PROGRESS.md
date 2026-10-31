@@ -7,9 +7,9 @@
 
 ## 1. 当前结论
 
-- **当前阶段：** M1 数据层进行中：Schema、初始迁移、自定义索引迁移、种子数据已完成；仓储层与 Qdrant 客户端待做。
+- **当前阶段：** M1 数据层进行中：Schema、迁移、种子、Qdrant 客户端与 A-2 压测已完成；仓储层待做。
 - **当前版本：** V1。
-- **下一步：** 实现仓储层与 Qdrant 客户端封装，然后跑 A-2 压测。
+- **下一步：** 实现仓储层（documents / versions / chunks / jobs），完成 M1-T3。
 - **环境说明：** 本机原生 PostgreSQL 占用 5432，compose 的 Postgres 映射到宿主 5433；`.env.example` 已同步。
 - **阻塞：** 无。
 
@@ -57,9 +57,9 @@
 | M1-T2 原始 SQL 迁移（搜索/部分唯一/触发器） | DONE | 2026-11-01 | 2026-11-01 | `20261031164359_search_and_constraints` 已应用；8 个索引、生成列、触发器、2 个 CHECK 均验证 |
 | M1-T3 仓储层 | TODO | — | — | — |
 | M1-T4 种子数据 | DONE | 2026-11-01 | 2026-11-01 | `pnpm --filter @kos/database seed` 两次执行后 1 用户 / 13 设置 |
-| M1-T5 Qdrant 客户端封装 | TODO | — | — | — |
-| M1-T6 A-2 十万块压测 | TODO | — | — | — |
-| M1-T7 压测结论与 ADR | TODO | — | — | — |
+| M1-T5 Qdrant 客户端封装 | DONE | 2026-11-01 | 2026-11-01 | `@kos/retrieval` 集成测试通过：建集合、索引、upsert、过滤检索、按版本删除 |
+| M1-T6 A-2 十万块压测 | DONE | 2026-11-01 | 2026-11-01 | 10 万点/1536 维/3 条件/Top-20：P50 88.2ms、P95 92.6ms、P99 99.6ms |
+| M1-T7 压测结论与 ADR | DONE | 2026-11-01 | 2026-11-01 | 通过 300ms 门禁，ADR-002 记录保留 Qdrant |
 
 ### M2 导入与解析
 
@@ -171,7 +171,7 @@
 | --- | --- | --- | --- |
 | 检索 Recall@10 | TODO | — | ≥ 0.85 |
 | 检索 MRR | TODO | — | ≥ 0.6 |
-| Qdrant P95（10 万块/3 条件） | TODO | — | ≤ 300ms（>600ms 切 pgvector） |
+| Qdrant P95（10 万块/3 条件） | DONE | 92.6ms | ≤ 300ms（>600ms 切 pgvector） |
 | 首 token P95 | TODO | — | ≤ 2.5s |
 | 非 LLM 接口 P95 | TODO | — | ≤ 300ms |
 | 引用可解析率 | TODO | — | 100% |
@@ -188,3 +188,4 @@
 | 2026-10-31 | M0-T1/T3/T4/T6 完成；M0-T2/T5 卡在 Docker Desktop 守护进程无法启动；单测 10/10 通过 |
 | 2026-11-01 | M0 完成：真实 readiness 200；修复 x-request-id、根 .env 加载；Postgres 宿主端口改 5433；CI 首次运行通过 |
 | 2026-11-01 | M1-T1/T2/T4 完成：Prisma Schema、两份迁移、种子数据；生成列与触发器已做真实写入/回滚验证 |
+| 2026-11-01 | M1-T5/T6/T7 完成：Qdrant 客户端与集成测试通过；A-2 压测 P95 92.6ms，保留 Qdrant |

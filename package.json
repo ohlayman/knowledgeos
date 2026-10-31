@@ -14,7 +14,8 @@
     "lint": "turbo run lint",
     "test": "turbo run test",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "bench:qdrant": "pnpm --filter @kos/retrieval build && pnpm --filter @kos/evaluation bench:qdrant"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",

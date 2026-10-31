@@ -1,0 +1,12 @@
+{
+  "collection": "kos_bench_1793465453145",
+  "points": 100000,
+  "dimensions": 1536,
+  "queries": 200,
+  "p50Ms": 88.15119999996386,
+  "p95Ms": 92.62109999998938,
+  "p99Ms": 99.5849000000162,
+  "gateMs": 300,
+  "passed": true,
+  "upsertAndQueryMs": 372456.31680000003
+}

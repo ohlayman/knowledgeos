@@ -1338,6 +1338,8 @@ console.table({ p50: percentile(latencies, 50), p95: percentile(latencies, 95) }
 - 300–600ms：优化 payload 索引与 HNSW 参数后复测。
 - > 600ms：切换 pgvector 单库，记录 ADR，并删除 Qdrant 依赖。
 
+**2026-11-01 实测（本机 Docker Desktop，Qdrant 1.20.0）：** 100,000 点 / 1536 维 / 3 个过滤条件 / Top-20，200 次查询，P50 88.2ms、P95 92.6ms、P99 99.6ms。**通过门禁，保留 Qdrant。** 报告见 `packages/evaluation/reports/qdrant-bench.json`。
+
 ### 17.3 其他验证项
 
 | 编号 | 验证方式 | 通过门槛 | 退路 |
@@ -1464,6 +1466,7 @@ sequenceDiagram
 **背景：** pgvector 单库可减少运维，但过滤 + 向量组合查询能力弱。
 **决策：** V1 保留 Qdrant；技术设计阶段执行 A-2 压测，P95 > 600ms 则切 pgvector。
 **理由：** 十万块规模下 Qdrant 的过滤查询更稳；但运维成本必须用数据证明值得。
+**验证（2026-11-01）：** 10 万点 / 1536 维 / 3 条件 / Top-20，P95 92.6ms，低于 300ms 门禁，保留 Qdrant。
 **后果：** 必须实现对账任务；Qdrant 不可用时关键词路径仍可用。
 
 ### ADR-003：中文关键词用 bigram + tsvector
