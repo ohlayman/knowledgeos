@@ -1491,6 +1491,7 @@ LIMIT 20;
 - 大表加索引用 `CREATE INDEX CONCURRENTLY`，不锁表。
 - 枚举新增值必须向后兼容，不删除已使用的值。
 - 每次迁移在 CI 的干净数据库上跑一遍，再跑集成测试。
+- 自定义 SQL 迁移（生成列、部分索引、触发器）用 `--create-only` 创建，写好后用 `migrate deploy` 应用。**应用后不要再运行 `migrate dev` 的自动 diff**，否则 Prisma 可能生成删除这些对象的迁移。
 
 ### 10.3 初始化数据
 

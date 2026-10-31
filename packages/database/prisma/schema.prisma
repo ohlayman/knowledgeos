@@ -1,0 +1,938 @@
+enum SourceType {
+  file
+  url
+  manual
+  github
+  rss
+  notion
+}
+
+enum VersionStatus {
+  queued
+  processing
+  ready
+  failed
+  needs_ocr
+  expired
+}
+
+enum ChunkType {
+  text
+  code
+  table
+  list
+}
+
+enum VectorStatus {
+  pending
+  ready
+  failed
+}
+
+enum JobType {
+  ingest
+  reparse
+  extract
+  wiki_compile
+  maintenance
+}
+
+enum JobStatus {
+  queued
+  running
+  succeeded
+  failed
+  canceled
+  expired
+}
+
+enum JobStepName {
+  parse
+  clean
+  metadata
+  dedupe
+  chunk
+  embed
+  index
+}
+
+enum StepStatus {
+  pending
+  running
+  succeeded
+  failed
+  skipped
+}
+
+enum MessageRole {
+  user
+  assistant
+  system
+}
+
+enum MessageStatus {
+  pending
+  streaming
+  complete
+  stopped
+  failed
+}
+
+enum FeedbackType {
+  helpful
+  not_helpful
+  citation_wrong
+}
+
+enum ProviderKind {
+  llm
+  embedding
+  rerank
+}
+
+enum WikiPageType {
+  concept
+  technology
+  project
+  comparison
+  research
+  source
+}
+
+enum WikiPageStatus {
+  draft
+  proposed
+  published
+  archived
+  stale
+}
+
+enum EditorType {
+  model
+  human
+  system
+}
+
+enum ProposalChangeType {
+  create
+  update
+  merge_suggestion
+  mark_stale
+}
+
+enum ProposalStatus {
+  pending
+  accepted
+  rejected
+  expired
+  invalid
+}
+
+enum ReviewTaskType {
+  proposal
+  stale_review
+  conflict
+}
+
+enum ReviewTaskStatus {
+  open
+  in_progress
+  resolved
+  dismissed
+}
+
+enum EntityType {
+  concept
+  technology
+  project
+  agent
+  protocol
+}
+
+enum EntityStatus {
+  active
+  merged
+  archived
+}
+
+enum RelationType {
+  RELATED_TO
+  DEPENDS_ON
+  USES
+  IMPLEMENTS
+  REFERENCES
+  PART_OF
+  COMPETES_WITH
+  EXTENDS
+  CONFLICTS_WITH
+}
+
+enum Direction {
+  directed
+  undirected
+}
+
+enum RelationOrigin {
+  extracted
+  human
+  conflict
+}
+
+enum RelationStatus {
+  active
+  pending
+  rejected
+}
+
+enum AgentStatus {
+  active
+  archived
+}
+
+enum RunStatus {
+  queued
+  running
+  succeeded
+  failed
+  canceled
+}
+
+enum RunStepType {
+  thought
+  tool_call
+  output
+}
+
+enum ToolCallStatus {
+  succeeded
+  failed
+}
+
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// 身份与设置
+// ============================================================
+
+model User {
+  id        String   @id @db.Uuid
+  name      String   @db.VarChar(128)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  documents     Document[]
+  conversations Conversation[]
+
+  @@map("users")
+}
+
+model ProviderConfig {
+  id               String       @id @db.Uuid
+  kind             ProviderKind
+  provider         String       @db.VarChar(64)
+  model            String       @db.VarChar(127)
+  baseUrl          String?      @map("base_url") @db.Text
+  apiKeyEncrypted  String?      @map("api_key_encrypted") @db.Text
+  apiKeyLast4      String?      @map("api_key_last4") @db.VarChar(8)
+  isActive         Boolean      @default(false) @map("is_active")
+  isDraft          Boolean      @default(true) @map("is_draft")
+  extra            Json?
+  createdAt        DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([kind, isActive])
+  @@map("provider_configs")
+}
+
+model AppSetting {
+  key       String   @id @db.VarChar(128)
+  value     Json
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@map("app_settings")
+}
+
+model IdempotencyKey {
+  key         String   @id @db.VarChar(200)
+  scope       String   @db.VarChar(64)
+  requestHash String   @map("request_hash") @db.VarChar(64)
+  statusCode  Int      @map("status_code")
+  response    Json
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  expiresAt   DateTime @map("expires_at") @db.Timestamptz(3)
+
+  @@index([expiresAt])
+  @@map("idempotency_keys")
+}
+
+model SystemEvent {
+  id        String   @id @db.Uuid
+  level     String   @db.VarChar(16)
+  type      String   @db.VarChar(64)
+  message   String   @db.Text
+  metadata  Json?
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([type, createdAt])
+  @@map("system_events")
+}
+
+model UsageCounter {
+  id        String   @id @db.Uuid
+  scope     String   @db.VarChar(32)
+  key       String   @db.VarChar(128)
+  date      String   @db.VarChar(10)
+  count     Int      @default(0)
+  tokens    Int      @default(0)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@unique([scope, key, date])
+  @@map("usage_counters")
+}
+
+// ============================================================
+// 来源、文档、版本、块
+// ============================================================
+
+model Source {
+  id          String     @id @db.Uuid
+  type        SourceType
+  fingerprint String     @db.Text
+  identifier  String     @db.Text
+  title       String?    @db.Text
+  metadata    Json?
+  firstSeenAt DateTime   @default(now()) @map("first_seen_at") @db.Timestamptz(3)
+  lastSeenAt  DateTime   @default(now()) @map("last_seen_at") @db.Timestamptz(3)
+  createdAt   DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  documents DocumentSource[]
+  versions  DocumentVersion[]
+
+  @@unique([type, fingerprint])
+  @@map("sources")
+}
+
+model Document {
+  id               String    @id @db.Uuid
+  ownerId          String?   @map("owner_id") @db.Uuid
+  title            String    @db.Text
+  currentVersionId String?   @unique @map("current_version_id") @db.Uuid
+  isDeleted        Boolean   @default(false) @map("is_deleted")
+  deletedAt        DateTime? @map("deleted_at") @db.Timestamptz(3)
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  owner          User?             @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  currentVersion DocumentVersion?  @relation("DocumentCurrentVersion", fields: [currentVersionId], references: [id], onDelete: SetNull)
+  versions       DocumentVersion[] @relation("DocumentVersions")
+  sources        DocumentSource[]
+  chunks         Chunk[]
+  jobs           ProcessingJob[]
+
+  @@index([isDeleted, updatedAt])
+  @@index([title])
+  @@map("documents")
+}
+
+model DocumentSource {
+  documentId  String   @map("document_id") @db.Uuid
+  sourceId    String   @map("source_id") @db.Uuid
+  isPrimary   Boolean  @default(false) @map("is_primary")
+  firstSeenAt DateTime @default(now()) @map("first_seen_at") @db.Timestamptz(3)
+  lastSeenAt  DateTime @default(now()) @map("last_seen_at") @db.Timestamptz(3)
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  source   Source   @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+
+  @@id([documentId, sourceId])
+  @@index([sourceId])
+  @@map("document_sources")
+}
+
+model DocumentVersion {
+  id               String        @id @db.Uuid
+  documentId       String        @map("document_id") @db.Uuid
+  sourceId         String?       @map("source_id") @db.Uuid
+  versionNo        Int           @map("version_no")
+  contentHash      String        @map("content_hash") @db.VarChar(64)
+  fileHash         String?       @map("file_hash") @db.VarChar(64)
+  status           VersionStatus @default(queued)
+  isCurrent        Boolean       @default(false) @map("is_current")
+  storageKey       String?       @map("storage_key") @db.Text
+  storageSize      Int?          @map("storage_size")
+  mimeType         String?       @map("mime_type") @db.VarChar(127)
+  originalFilename String?       @map("original_filename") @db.Text
+  normalizedText   String?       @map("normalized_text") @db.Text
+  charCount        Int           @default(0) @map("char_count")
+  pageCount        Int?          @map("page_count")
+  language         String?       @db.VarChar(16)
+  metadata         Json?
+  parseWarnings    Json?         @map("parse_warnings")
+  suspiciousCount  Int           @default(0) @map("suspicious_count")
+  createdAt        DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
+  readyAt          DateTime?     @map("ready_at") @db.Timestamptz(3)
+
+  document   Document         @relation("DocumentVersions", fields: [documentId], references: [id], onDelete: Cascade)
+  source     Source?          @relation(fields: [sourceId], references: [id], onDelete: SetNull)
+  currentOf  Document?        @relation("DocumentCurrentVersion")
+  chunks     Chunk[]
+  jobs       ProcessingJob[]
+  proposals  WikiProposal[]
+
+  @@unique([documentId, versionNo])
+  @@unique([documentId, contentHash])
+  @@index([documentId, isCurrent])
+  @@index([status])
+  @@map("document_versions")
+}
+
+model Chunk {
+  id             String       @id @db.Uuid
+  documentId     String       @map("document_id") @db.Uuid
+  versionId      String       @map("version_id") @db.Uuid
+  chunkIndex     Int          @map("chunk_index")
+  text           String       @db.Text
+  tokenCount     Int          @map("token_count")
+  startOffset    Int          @map("start_offset")
+  endOffset      Int          @map("end_offset")
+  pageStart      Int?         @map("page_start")
+  pageEnd        Int?         @map("page_end")
+  headingPath    String[]     @default([]) @map("heading_path")
+  type           ChunkType    @default(text)
+  location       Json?
+  searchText     String       @map("search_text") @db.Text
+  vectorStatus   VectorStatus @default(pending) @map("vector_status")
+  embeddingModel String?      @map("embedding_model") @db.VarChar(127)
+  embeddingDim   Int?         @map("embedding_dim")
+  suspicious     Boolean      @default(false)
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  document      Document       @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  version       DocumentVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  citations     Citation[]
+  entityMentions EntityMention[]
+
+  @@unique([versionId, chunkIndex])
+  @@index([documentId])
+  @@index([versionId, vectorStatus])
+  @@map("chunks")
+}
+
+// ============================================================
+// 任务
+// ============================================================
+
+model ProcessingJob {
+  id           String       @id @db.Uuid
+  documentId   String       @map("document_id") @db.Uuid
+  versionId    String       @map("version_id") @db.Uuid
+  type         JobType      @default(ingest)
+  status       JobStatus    @default(queued)
+  currentStep  JobStepName? @map("current_step")
+  attempt      Int          @default(0)
+  maxAttempts  Int          @default(3) @map("max_attempts")
+  errorCode    String?      @map("error_code") @db.VarChar(64)
+  errorMessage String?      @map("error_message") @db.Text
+  errorStack   String?      @map("error_stack") @db.Text
+  startedAt    DateTime?    @map("started_at") @db.Timestamptz(3)
+  finishedAt   DateTime?    @map("finished_at") @db.Timestamptz(3)
+  createdAt    DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  document Document       @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  version  DocumentVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  steps    JobStep[]
+
+  @@index([status, createdAt])
+  @@index([versionId, status])
+  @@map("processing_jobs")
+}
+
+model JobStep {
+  id            String       @id @db.Uuid
+  jobId         String       @map("job_id") @db.Uuid
+  step          JobStepName
+  stepOrder     Int          @map("step_order")
+  status        StepStatus   @default(pending)
+  attempt       Int          @default(0)
+  startedAt     DateTime?    @map("started_at") @db.Timestamptz(3)
+  finishedAt    DateTime?    @map("finished_at") @db.Timestamptz(3)
+  inputSummary  Json?        @map("input_summary")
+  outputSummary Json?        @map("output_summary")
+  errorCode     String?      @map("error_code") @db.VarChar(64)
+  errorMessage  String?      @map("error_message") @db.Text
+  errorStack    String?      @map("error_stack") @db.Text
+  metadata      Json?
+
+  job ProcessingJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@unique([jobId, step])
+  @@index([jobId, stepOrder])
+  @@map("job_steps")
+}
+
+// ============================================================
+// 会话、消息、引用、检索轨迹
+// ============================================================
+
+model Conversation {
+  id        String    @id @db.Uuid
+  ownerId   String?   @map("owner_id") @db.Uuid
+  title     String    @db.Text
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+
+  owner    User?     @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  messages Message[]
+
+  @@index([ownerId, updatedAt])
+  @@map("conversations")
+}
+
+model Message {
+  id              String        @id @db.Uuid
+  conversationId  String        @map("conversation_id") @db.Uuid
+  role            MessageRole
+  content         String        @db.Text
+  status          MessageStatus @default(pending)
+  clientMessageId String?       @map("client_message_id") @db.VarChar(128)
+  model           String?       @db.VarChar(127)
+  promptVersion   String?       @map("prompt_version") @db.VarChar(64)
+  tokenUsage      Json?         @map("token_usage")
+  citationCheck   Json?         @map("citation_check")
+  errorCode       String?       @map("error_code") @db.VarChar(64)
+  createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  conversation Conversation    @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  citations    Citation[]
+  feedback     MessageFeedback?
+  retrievalRun RetrievalRun?
+
+  @@unique([conversationId, clientMessageId])
+  @@index([conversationId, createdAt])
+  @@index([status])
+  @@map("messages")
+}
+
+model Citation {
+  id              String   @id @db.Uuid
+  messageId       String   @map("message_id") @db.Uuid
+  chunkId         String?  @map("chunk_id") @db.Uuid
+  documentId      String   @map("document_id") @db.Uuid
+  versionId       String   @map("version_id") @db.Uuid
+  ordinal         Int
+  quote           String   @db.Text
+  startOffset     Int?     @map("start_offset")
+  endOffset       Int?     @map("end_offset")
+  isValid         Boolean  @default(true) @map("is_valid")
+  validationError String?  @map("validation_error") @db.VarChar(64)
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  chunk   Chunk?  @relation(fields: [chunkId], references: [id], onDelete: SetNull)
+
+  @@unique([messageId, ordinal])
+  @@index([chunkId])
+  @@map("citations")
+}
+
+model MessageFeedback {
+  id              String       @id @db.Uuid
+  messageId       String       @unique @map("message_id") @db.Uuid
+  type            FeedbackType
+  citationOrdinal Int?         @map("citation_ordinal")
+  comment         String?      @db.Text
+  snapshot        Json?
+  createdAt       DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@map("message_feedback")
+}
+
+model RetrievalRun {
+  id              String   @id @db.Uuid
+  messageId       String?  @unique @map("message_id") @db.Uuid
+  query           String   @db.Text
+  rewrittenQuery  String?  @map("rewritten_query") @db.Text
+  questionType    String?  @map("question_type") @db.VarChar(32)
+  entities        Json?
+  config          Json?
+  vectorResults   Json?    @map("vector_results")
+  keywordResults  Json?    @map("keyword_results")
+  fusedResults    Json?    @map("fused_results")
+  rerankedResults Json?    @map("reranked_results")
+  finalChunkIds   String[] @default([]) @map("final_chunk_ids")
+  degraded        String[] @default([])
+  durationMs      Int?     @map("duration_ms")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  message Message? @relation(fields: [messageId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@map("retrieval_runs")
+}
+
+// ============================================================
+// V1.5：Wiki 与知识抽取
+// ============================================================
+
+model WikiPage {
+  id                String         @id @db.Uuid
+  slug              String         @unique @db.VarChar(255)
+  title             String         @db.Text
+  type              WikiPageType
+  status            WikiPageStatus @default(draft)
+  summary           String?        @db.Text
+  aliases           String[]       @default([])
+  confidence        Float?
+  currentRevisionId String?        @unique @map("current_revision_id") @db.Uuid
+  lastReviewedAt    DateTime?      @map("last_reviewed_at") @db.Timestamptz(3)
+  archivedAt        DateTime?      @map("archived_at") @db.Timestamptz(3)
+  createdAt         DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  currentRevision WikiRevision? @relation("WikiCurrentRevision", fields: [currentRevisionId], references: [id], onDelete: SetNull)
+  revisions       WikiRevision[] @relation("WikiRevisions")
+  proposals       WikiProposal[] @relation("WikiProposalTarget")
+  outgoingLinks   WikiLink[]     @relation("WikiLinkFrom")
+  incomingLinks   WikiLink[]     @relation("WikiLinkTo")
+
+  @@index([type, status])
+  @@map("wiki_pages")
+}
+
+model WikiRevision {
+  id               String     @id @db.Uuid
+  pageId           String     @map("page_id") @db.Uuid
+  revisionNo       Int        @map("revision_no")
+  parentRevisionId String?    @map("parent_revision_id") @db.Uuid
+  editorType       EditorType @map("editor_type")
+  changeSummary    String?    @map("change_summary") @db.Text
+  content          Json
+  evidenceChunkIds String[]   @default([]) @map("evidence_chunk_ids")
+  diffStat         Json?      @map("diff_stat")
+  proposalId       String?    @map("proposal_id") @db.Uuid
+  createdAt        DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  page         WikiPage @relation("WikiRevisions", fields: [pageId], references: [id], onDelete: Cascade)
+  parent       WikiRevision? @relation("WikiRevisionParent", fields: [parentRevisionId], references: [id], onDelete: SetNull)
+  children     WikiRevision[] @relation("WikiRevisionParent")
+  currentOf    WikiPage? @relation("WikiCurrentRevision")
+  proposal     WikiProposal? @relation("WikiProposalResult", fields: [proposalId], references: [id], onDelete: SetNull)
+  baseOf       WikiProposal[] @relation("WikiProposalBase")
+
+  @@unique([pageId, revisionNo])
+  @@index([pageId, createdAt])
+  @@map("wiki_revisions")
+}
+
+model WikiProposal {
+  id                String             @id @db.Uuid
+  targetPageId      String?            @map("target_page_id") @db.Uuid
+  changeType        ProposalChangeType @map("change_type")
+  baseRevisionId    String?            @map("base_revision_id") @db.Uuid
+  dedupeKey         String             @unique @map("dedupe_key") @db.VarChar(64)
+  patch             Json
+  evidence          Json
+  conflicts         Json?
+  validation        Json?
+  status            ProposalStatus     @default(pending)
+  documentVersionId String?            @map("document_version_id") @db.Uuid
+  modelMeta         Json?              @map("model_meta")
+  reviewedBy        String?            @map("reviewed_by") @db.Uuid
+  reviewedAt        DateTime?          @map("reviewed_at") @db.Timestamptz(3)
+  rejectReason      String?            @map("reject_reason") @db.VarChar(64)
+  rejectComment     String?            @map("reject_comment") @db.Text
+  createdAt         DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
+  expiresAt         DateTime?          @map("expires_at") @db.Timestamptz(3)
+
+  targetPage      WikiPage?        @relation("WikiProposalTarget", fields: [targetPageId], references: [id], onDelete: SetNull)
+  baseRevision    WikiRevision?    @relation("WikiProposalBase", fields: [baseRevisionId], references: [id], onDelete: SetNull)
+  documentVersion DocumentVersion? @relation(fields: [documentVersionId], references: [id], onDelete: SetNull)
+  resultRevisions WikiRevision[]   @relation("WikiProposalResult")
+  reviewTasks     ReviewTask[]
+
+  @@index([status, createdAt])
+  @@index([targetPageId, status])
+  @@map("wiki_proposals")
+}
+
+model WikiLink {
+  id           String   @id @db.Uuid
+  fromPageId   String   @map("from_page_id") @db.Uuid
+  toPageId     String?  @map("to_page_id") @db.Uuid
+  targetSlug   String   @map("target_slug") @db.VarChar(255)
+  relationType String?  @map("relation_type") @db.VarChar(32)
+  context      String?  @db.Text
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  fromPage WikiPage  @relation("WikiLinkFrom", fields: [fromPageId], references: [id], onDelete: Cascade)
+  toPage   WikiPage? @relation("WikiLinkTo", fields: [toPageId], references: [id], onDelete: SetNull)
+
+  @@index([toPageId])
+  @@index([targetSlug])
+  @@map("wiki_links")
+}
+
+model Entity {
+  id              String       @id @db.Uuid
+  canonicalName   String       @map("canonical_name") @db.Text
+  normalizedName  String       @map("normalized_name") @db.Text
+  type            EntityType
+  aliases         String[]     @default([])
+  sourceChunkIds  String[]     @default([]) @map("source_chunk_ids")
+  mentionCount    Int          @default(0) @map("mention_count")
+  confidence      Float        @default(0)
+  status          EntityStatus @default(active)
+  mergedIntoId    String?      @map("merged_into_id") @db.Uuid
+  createdAt       DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  mergedInto  Entity?         @relation("EntityMerge", fields: [mergedIntoId], references: [id], onDelete: SetNull)
+  mergedFrom  Entity[]        @relation("EntityMerge")
+  mentions    EntityMention[]
+  relationsFrom Relation[]    @relation("RelationFrom")
+  relationsTo   Relation[]    @relation("RelationTo")
+  facts       Fact[]
+
+  @@index([type, status])
+  @@index([normalizedName])
+  @@map("entities")
+}
+
+model EntityMention {
+  id          String   @id @db.Uuid
+  entityId    String   @map("entity_id") @db.Uuid
+  chunkId     String   @map("chunk_id") @db.Uuid
+  startOffset Int      @map("start_offset")
+  endOffset   Int      @map("end_offset")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  entity Entity @relation(fields: [entityId], references: [id], onDelete: Cascade)
+  chunk  Chunk  @relation(fields: [chunkId], references: [id], onDelete: Cascade)
+
+  @@unique([entityId, chunkId, startOffset])
+  @@index([chunkId])
+  @@map("entity_mentions")
+}
+
+model Relation {
+  id               String         @id @db.Uuid
+  fromEntityId     String         @map("from_entity_id") @db.Uuid
+  toEntityId       String         @map("to_entity_id") @db.Uuid
+  type             RelationType
+  direction        Direction      @default(directed)
+  evidenceChunkIds String[]       @default([]) @map("evidence_chunk_ids")
+  confidence       Float          @default(0)
+  origin           RelationOrigin @default(extracted)
+  status           RelationStatus @default(active)
+  createdAt        DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  fromEntity Entity @relation("RelationFrom", fields: [fromEntityId], references: [id], onDelete: Cascade)
+  toEntity   Entity @relation("RelationTo", fields: [toEntityId], references: [id], onDelete: Cascade)
+
+  @@index([fromEntityId, type, status])
+  @@index([toEntityId, type, status])
+  @@map("relations")
+}
+
+model Fact {
+  id              String   @id @db.Uuid
+  subjectEntityId String   @map("subject_entity_id") @db.Uuid
+  predicate       String   @db.VarChar(128)
+  valueText       String   @map("value_text") @db.Text
+  valueType       String?  @map("value_type") @db.VarChar(32)
+  evidenceChunkId String   @map("evidence_chunk_id") @db.Uuid
+  capturedAt      DateTime @default(now()) @map("captured_at") @db.Timestamptz(3)
+  identityHash    String   @map("identity_hash") @db.VarChar(64)
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  subject Entity @relation(fields: [subjectEntityId], references: [id], onDelete: Cascade)
+
+  @@unique([subjectEntityId, predicate, valueText, evidenceChunkId])
+  @@index([identityHash])
+  @@map("facts")
+}
+
+model ReviewTask {
+  id         String           @id @db.Uuid
+  type       ReviewTaskType
+  targetType String           @map("target_type") @db.VarChar(32)
+  targetId   String           @map("target_id") @db.Uuid
+  priority   Int              @default(0)
+  status     ReviewTaskStatus @default(open)
+  proposalId String?          @map("proposal_id") @db.Uuid
+  createdAt  DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  resolvedAt DateTime?        @map("resolved_at") @db.Timestamptz(3)
+
+  proposal WikiProposal? @relation(fields: [proposalId], references: [id], onDelete: SetNull)
+
+  @@index([status, priority, createdAt])
+  @@map("review_tasks")
+}
+
+model ExtractionCache {
+  id            String   @id @db.Uuid
+  chunkId       String   @map("chunk_id") @db.Uuid
+  model         String   @db.VarChar(127)
+  promptVersion String   @map("prompt_version") @db.VarChar(64)
+  result        Json
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@unique([chunkId, model, promptVersion])
+  @@map("extraction_cache")
+}
+
+// ============================================================
+// V2：Agent（图谱复用 Entity / Relation）
+// ============================================================
+
+model Agent {
+  id          String      @id @db.Uuid
+  name        String      @db.VarChar(128)
+  description String?     @db.Text
+  status      AgentStatus @default(active)
+  createdAt   DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime    @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  versions AgentVersion[]
+  runs     AgentRun[]
+
+  @@map("agents")
+}
+
+model AgentVersion {
+  id             String   @id @db.Uuid
+  agentId        String   @map("agent_id") @db.Uuid
+  versionNo      Int      @map("version_no")
+  systemPrompt   String   @map("system_prompt") @db.Text
+  model          String   @db.VarChar(127)
+  temperature    Float    @default(0.2)
+  toolAllowlist  String[] @default([]) @map("tool_allowlist")
+  maxSteps       Int      @default(8) @map("max_steps")
+  tokenBudget    Int      @default(20000) @map("token_budget")
+  toolCallBudget Int      @default(12) @map("tool_call_budget")
+  allowProposal  Boolean  @default(false) @map("allow_proposal")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  agent Agent      @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  runs  AgentRun[]
+
+  @@unique([agentId, versionNo])
+  @@map("agent_versions")
+}
+
+model AgentRun {
+  id                String    @id @db.Uuid
+  agentId           String    @map("agent_id") @db.Uuid
+  agentVersionId    String    @map("agent_version_id") @db.Uuid
+  trigger           String    @db.VarChar(32)
+  input             Json
+  status            RunStatus @default(queued)
+  totalSteps        Int       @default(0) @map("total_steps")
+  totalTokens       Int       @default(0) @map("total_tokens")
+  durationMs        Int?      @map("duration_ms")
+  terminationReason String?   @map("termination_reason") @db.VarChar(64)
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  finishedAt        DateTime? @map("finished_at") @db.Timestamptz(3)
+
+  agent        Agent        @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  agentVersion AgentVersion @relation(fields: [agentVersionId], references: [id], onDelete: Restrict)
+  steps        RunStep[]
+  toolCalls    ToolCall[]
+
+  @@index([agentId, createdAt])
+  @@map("agent_runs")
+}
+
+model RunStep {
+  id            String      @id @db.Uuid
+  runId         String      @map("run_id") @db.Uuid
+  stepIndex     Int         @map("step_index")
+  type          RunStepType
+  outputSummary String?     @map("output_summary") @db.Text
+  durationMs    Int?        @map("duration_ms")
+  createdAt     DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  run AgentRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@unique([runId, stepIndex])
+  @@map("run_steps")
+}
+
+model ToolCall {
+  id             String         @id @db.Uuid
+  runId          String         @map("run_id") @db.Uuid
+  stepIndex      Int            @map("step_index")
+  toolName       String         @map("tool_name") @db.VarChar(64)
+  paramsRedacted Json           @map("params_redacted")
+  resultSummary  String?        @map("result_summary") @db.Text
+  status         ToolCallStatus
+  durationMs     Int            @map("duration_ms")
+  errorCode      String?        @map("error_code") @db.VarChar(64)
+  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  run AgentRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@index([runId, stepIndex])
+  @@map("tool_calls")
+}
+
+// ============================================================
+// V3：MCP 令牌与审计
+// ============================================================
+
+model McpToken {
+  id             String    @id @db.Uuid
+  name           String    @db.VarChar(128)
+  tokenHash      String    @unique @map("token_hash") @db.VarChar(64)
+  tokenPrefix    String    @map("token_prefix") @db.VarChar(16)
+  documentScope  Json?     @map("document_scope")
+  toolAllowlist  String[]  @default([]) @map("tool_allowlist")
+  dailyLimit     Int       @default(500) @map("daily_limit")
+  qpsLimit       Int       @default(5) @map("qps_limit")
+  expiresAt      DateTime? @map("expires_at") @db.Timestamptz(3)
+  revokedAt      DateTime? @map("revoked_at") @db.Timestamptz(3)
+  lastUsedAt     DateTime? @map("last_used_at") @db.Timestamptz(3)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  audits McpAuditLog[]
+
+  @@index([revokedAt, expiresAt])
+  @@map("mcp_tokens")
+}
+
+model McpAuditLog {
+  id            String   @id @db.Uuid
+  tokenId       String?  @map("token_id") @db.Uuid
+  tool          String   @db.VarChar(64)
+  paramsSummary Json?    @map("params_summary")
+  resultCount   Int?     @map("result_count")
+  durationMs    Int      @map("duration_ms")
+  statusCode    Int      @map("status_code")
+  transport     String   @db.VarChar(16)
+  suspicious    Boolean  @default(false)
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  token McpToken? @relation(fields: [tokenId], references: [id], onDelete: SetNull)
+
+  @@index([tokenId, createdAt])
+  @@index([createdAt])
+  @@map("mcp_audit_logs")
+}
