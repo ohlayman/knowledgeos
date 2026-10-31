@@ -1,9 +1,16 @@
 import { Redis } from 'ioredis';
-import { createPrismaClient, DocumentRepository, type PrismaClient } from '@kos/database';
+import {
+  createPrismaClient,
+  DocumentRepository,
+  JobRepository,
+  type PrismaClient,
+} from '@kos/database';
+import { cancelIngest, createIngestQueue, enqueueIngest, retryIngest } from '@kos/queue';
 import type { Env } from '@kos/shared';
 import { LocalStorageAdapter, type StorageAdapter } from '@kos/storage';
-import { DocumentService } from './modules/documents/document-service.js';
+import { DocumentService, type IngestEnqueuer } from './modules/documents/document-service.js';
 import { createUrlFetcher, type UrlFetcher } from './modules/documents/url-fetcher.js';
+import { JobService } from './modules/jobs/job-service.js';
 
 export interface Pingable {
   ping(): Promise<void>;
@@ -20,14 +27,33 @@ export interface AppDeps {
   qdrant: Pingable;
   prisma: PrismaClient;
   storage: StorageAdapter;
+  queue: Closable;
   documents: DocumentService;
+  jobs: JobService;
   urlFetcher: UrlFetcher;
 }
 
 export function createDeps(env: Env): AppDeps {
   const prisma = createPrismaClient(env.DATABASE_URL);
   const storage = new LocalStorageAdapter(env.DATA_DIR);
-  const documents = new DocumentService(new DocumentRepository(prisma), storage);
+  const queue = createIngestQueue(env.REDIS_URL);
+
+  const enqueue: IngestEnqueuer = async (data) => {
+    try {
+      await enqueueIngest(queue, data);
+    } catch (error) {
+      // 任务行已落库，入队失败时由对账任务补投，不阻塞导入响应。
+      console.error('failed to enqueue ingest job', data.jobId, error);
+    }
+  };
+
+  const documents = new DocumentService(new DocumentRepository(prisma), storage, enqueue);
+  const jobs = new JobService(prisma, new JobRepository(prisma), {
+    retry: async (data) => {
+      await retryIngest(queue, data);
+    },
+    cancel: (jobId) => cancelIngest(queue, jobId),
+  });
   const urlFetcher = createUrlFetcher();
 
   const redis = new Redis(env.REDIS_URL, {
@@ -44,7 +70,9 @@ export function createDeps(env: Env): AppDeps {
     env,
     prisma,
     storage,
+    queue,
     documents,
+    jobs,
     urlFetcher,
     db: {
       async ping() {

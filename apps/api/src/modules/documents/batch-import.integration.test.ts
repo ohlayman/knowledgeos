@@ -55,7 +55,9 @@ describe.skipIf(!enabled)('POST /api/v1/documents/files batch import', () => {
       qdrant: { ping: async () => undefined },
       prisma,
       storage,
+      queue: { close: async () => undefined },
       documents: new DocumentService(new DocumentRepository(prisma), storage),
+      jobs: {} as AppDeps['jobs'],
       urlFetcher: {
         fetch: async () => {
           throw new Error('unused in batch import test');

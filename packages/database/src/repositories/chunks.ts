@@ -101,6 +101,19 @@ export class ChunkRepository {
     });
   }
 
+  async findExistingIds(ids: string[]): Promise<Set<string>> {
+    if (ids.length === 0) {
+      return new Set();
+    }
+
+    const rows = await this.prisma.chunk.findMany({
+      where: { id: { in: ids } },
+      select: { id: true },
+    });
+
+    return new Set(rows.map((row) => row.id));
+  }
+
   async listMissingVectors(limit = 500) {
     return this.prisma.chunk.findMany({
       where: {

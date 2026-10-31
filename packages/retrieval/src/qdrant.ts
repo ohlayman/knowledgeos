@@ -114,6 +114,19 @@ export class QdrantStore {
     });
   }
 
+  async setCurrentVersion(documentId: string, versionId: string): Promise<void> {
+    await this.client.setPayload(this.config.collection, {
+      payload: { isCurrent: false },
+      filter: { must: [{ key: 'documentId', match: { value: documentId } }] },
+      wait: true,
+    });
+    await this.client.setPayload(this.config.collection, {
+      payload: { isCurrent: true },
+      filter: { must: [{ key: 'versionId', match: { value: versionId } }] },
+      wait: true,
+    });
+  }
+
   async search(vector: number[], options: VectorSearchOptions = {}): Promise<VectorSearchResult[]> {
     const response = await this.client.query(this.config.collection, {
       query: vector,
@@ -158,6 +171,39 @@ export class QdrantStore {
         must: [{ key: 'versionId', match: { value: versionId } }],
       },
     });
+  }
+
+  async scrollIds(pageSize = 1000): Promise<string[]> {
+    const ids: string[] = [];
+    let offset: string | number | undefined;
+
+    for (;;) {
+      const response = await this.client.scroll(this.config.collection, {
+        limit: pageSize,
+        with_payload: false,
+        with_vector: false,
+        ...(offset === undefined ? {} : { offset }),
+      });
+
+      for (const point of response.points) {
+        ids.push(String(point.id));
+      }
+
+      const next = response.next_page_offset;
+      if (next === null || next === undefined) {
+        break;
+      }
+      offset = typeof next === 'object' ? String(next) : next;
+    }
+
+    return ids;
+  }
+
+  async deleteByIds(ids: string[]): Promise<void> {
+    if (ids.length === 0) {
+      return;
+    }
+    await this.client.delete(this.config.collection, { wait: true, points: ids });
   }
 
   async deleteCollection(): Promise<void> {

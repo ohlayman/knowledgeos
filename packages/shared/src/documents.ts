@@ -52,3 +52,39 @@ export const UpdateDocumentInputSchema = z
   });
 
 export type UpdateDocumentInput = z.infer<typeof UpdateDocumentInputSchema>;
+
+export const JobStepNameSchema = z.enum([
+  'parse',
+  'clean',
+  'metadata',
+  'dedupe',
+  'chunk',
+  'embed',
+  'index',
+]);
+
+export const JobStatusSchema = z.enum([
+  'queued',
+  'running',
+  'succeeded',
+  'failed',
+  'canceled',
+  'expired',
+]);
+
+export const JobListQuerySchema = z.object({
+  status: JobStatusSchema.optional(),
+  cursor: z.string().uuid().optional(),
+  limit: z.coerce.number().int().min(1).max(100).optional(),
+});
+
+export const JobRetryInputSchema = z
+  .object({
+    mode: z.enum(['step', 'full']),
+    step: JobStepNameSchema.optional(),
+  })
+  .refine((value) => value.mode === 'full' || value.step !== undefined, {
+    message: '单步重试需要指定 step',
+  });
+
+export type JobRetryInput = z.infer<typeof JobRetryInputSchema>;

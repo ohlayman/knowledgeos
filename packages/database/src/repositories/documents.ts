@@ -404,6 +404,31 @@ export class DocumentRepository {
     });
   }
 
+  async getVersionById(versionId: string) {
+    return this.prisma.documentVersion.findUnique({
+      where: { id: versionId },
+      include: {
+        document: { select: { id: true, title: true, tags: true, isDeleted: true } },
+      },
+    });
+  }
+
+  async updateVersionContent(
+    versionId: string,
+    input: {
+      normalizedText?: string;
+      charCount?: number;
+      pageCount?: number;
+      language?: string;
+      metadata?: Prisma.InputJsonValue;
+    },
+  ): Promise<void> {
+    await this.prisma.documentVersion.update({
+      where: { id: versionId },
+      data: input,
+    });
+  }
+
   async listVersions(documentId: string) {
     return this.prisma.documentVersion.findMany({
       where: { documentId },

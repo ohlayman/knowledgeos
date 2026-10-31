@@ -60,10 +60,17 @@ interface CommitInput {
   persist: () => Promise<void>;
 }
 
+export type IngestEnqueuer = (data: {
+  jobId: string;
+  documentId: string;
+  versionId: string;
+}) => Promise<void>;
+
 export class DocumentService {
   constructor(
     private readonly documents: DocumentRepository,
     private readonly storage: StorageAdapter,
+    private readonly enqueue?: IngestEnqueuer,
   ) {}
 
   async ingestFile(input: IngestFileInput): Promise<IngestFileResult> {
@@ -247,12 +254,14 @@ export class DocumentService {
         sourceId: existingDocument.sourceId,
       });
 
-      return {
+      const result: IngestFileResult = {
         status: 'queued',
         documentId: existingDocument.documentId,
         versionId: appended.versionId,
         jobId: appended.jobId,
       };
+      await this.dispatch(result);
+      return result;
     }
 
     const created = await this.documents.createWithVersion({
@@ -262,6 +271,20 @@ export class DocumentService {
       version,
     });
 
-    return { status: 'queued', ...created };
+    const result: IngestFileResult = { status: 'queued', ...created };
+    await this.dispatch(result);
+    return result;
+  }
+
+  private async dispatch(result: IngestFileResult): Promise<void> {
+    if (!this.enqueue || !result.jobId || !result.versionId) {
+      return;
+    }
+
+    await this.enqueue({
+      jobId: result.jobId,
+      documentId: result.documentId,
+      versionId: result.versionId,
+    });
   }
 }

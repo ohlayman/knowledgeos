@@ -13,6 +13,7 @@ const app = buildApp(deps);
 async function shutdown(signal: string): Promise<void> {
   app.log.info({ signal }, 'shutting down');
   await app.close();
+  await deps.queue.close();
   await deps.db.close();
   await deps.redis.close();
   process.exit(0);

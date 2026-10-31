@@ -7,10 +7,11 @@
 
 ## 1. 当前结论
 
-- **当前阶段：** M2 导入与解析已完成：四类来源、四类解析器、内容级去重、文档 CRUD、200 文件批量导入；下一步 M3 处理流水线。
+- **当前阶段：** M3 处理流水线已完成：BullMQ 队列、worker、七步流水线、切块、Embedding、Qdrant 写入、对账、任务 API；下一步 M4 检索。
 - **当前版本：** V1。
-- **下一步：** M3-T1 BullMQ 队列与 worker 骨架。
+- **下一步：** M4-T1 bigram 与查询构造。
 - **环境说明：** 本机原生 PostgreSQL 占用 5432，compose 的 Postgres 映射到宿主 5433；`.env.example` 已同步。
+- **集成测试：** Turbo 2 默认 strict 环境透传，跑真实依赖需 `RUN_DB_INTEGRATION=1 pnpm test -- --env-mode=loose`。
 - **阻塞：** 无。
 
 ---
@@ -82,17 +83,17 @@
 
 | 任务 | 状态 | 开始 | 完成 | 证据 |
 | --- | --- | --- | --- | --- |
-| M3-T1 BullMQ 队列 | TODO | — | — | — |
-| M3-T2 流水线编排与恢复 | TODO | — | — | — |
-| M3-T3 清洗步骤 | TODO | — | — | — |
-| M3-T4 元数据步骤 | TODO | — | — | — |
-| M3-T5 切块器 | TODO | — | — | — |
-| M3-T6 Embedding Adapter | TODO | — | — | — |
-| M3-T7 Qdrant 写入 | TODO | — | — | — |
-| M3-T8 索引与 ready 判定 | TODO | — | — | — |
-| M3-T9 对账任务 | TODO | — | — | — |
-| M3-T10 任务 API 与重试 | TODO | — | — | — |
-| M3-T11 并发控制 | TODO | — | — | — |
+| M3-T1 BullMQ 队列 | DONE|2026-11-01|2026-11-01|`@kos/queue`：连接解析、幂等入队、真实 Redis 入队与消费测试 |
+| M3-T2 流水线编排与恢复 | DONE|2026-11-01|2026-11-01|七步流水线、`job_steps` 持久化、跳过成功步骤；断点恢复测试 |
+| M3-T3 清洗步骤 | DONE|2026-11-01|2026-11-01|`normalizeText` 清洗、空正文判定、字符数计数 |
+| M3-T4 元数据步骤 | DONE|2026-11-01|2026-11-01|标题/语言/作者/字数写入版本元数据，缺失用文档标题兜底 |
+| M3-T5 切块器 | DONE|2026-11-01|2026-11-01|`@kos/chunking`：标题分组、句子边界、代码/表格独立、10% 重叠、小块合并；8 条 golden 测试 |
+| M3-T6 Embedding Adapter | DONE|2026-11-01|2026-11-01|OpenAI 兼容（批量/超时/重试）+ Fake；6 条测试覆盖批量、重试、4xx、维度校验 |
+| M3-T7 Qdrant 写入 | DONE|2026-11-01|2026-11-01|点 ID=chunkId、payload 含文档/版本/标签、批量 upsert；重跑不产生重复点 |
+| M3-T8 索引与 ready 判定 | DONE|2026-11-01|2026-11-01|全部块 `vectorStatus=ready` 才置版本 ready；否则整步失败 |
+| M3-T9 对账任务 | DONE|2026-11-01|2026-11-01|补投 Redis 缺失的 queued 任务、删除孤儿向量；3 条真实 Qdrant 测试 |
+| M3-T10 任务 API 与重试 | DONE|2026-11-01|2026-11-01|列表/详情/单步与整单重试/取消；6 条路由测试 + 4 条真实库测试 |
+| M3-T11 并发控制 | DONE|2026-11-01|2026-11-01|worker 并发读 `processing.concurrency`（默认 2）；问答并发留待 M5 |
 
 ### M4 检索
 
@@ -175,8 +176,8 @@
 | 首 token P95 | TODO | — | ≤ 2.5s |
 | 非 LLM 接口 P95 | TODO | — | ≤ 300ms |
 | 引用可解析率 | TODO | — | 100% |
-| 单测 | DONE | 76/76 通过（shared 16 + api 29 + storage 6 + parser 25） | 全绿 |
-| 集成 | DONE | 12/12 通过（数据库仓储 5 + Qdrant 1 + 文档服务 5 + 批量导入 1） | 全绿 |
+| 单测 | DONE | 106/106 通过（shared 20 + api 35 + storage 6 + parser 25 + queue 2 + chunking 8 + embeddings 6 + worker 4） | 全绿 |
+| 集成 | DONE | 25/25 通过（数据库 5 + Qdrant 1 + 队列 1 + 文档 6 + 任务 4 + 流水线 5 + 对账 3） | 全绿 |
 | E2E | TODO | — | 全绿 |
 
 ---
@@ -198,3 +199,4 @@
 | 2026-11-01 | M2-T5 完成：URL 导入、SSRF（私网/回环/链路本地/逐跳重定向）、10MB 限制；单测 43/43、集成 9/9 |
 | 2026-11-01 | M2-T6~T9 完成：新增 `@kos/parser`，Markdown/纯文本/PDF/HTML 四类解析器与 MIME 分派；单测 67/67 |
 | 2026-11-01 | M2-T10~T12 完成：内容哈希去重与版本判定、文档列表/详情/标签/逻辑删除、200 文件批量导入；单测 76/76、集成 12/12；M2 收尾 |
+| 2026-11-01 | M3 完成：队列与 worker、七步流水线、切块、Embedding、Qdrant 写入、对账、任务 API；20 页 PDF 端到端 ready |

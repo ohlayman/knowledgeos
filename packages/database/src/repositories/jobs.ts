@@ -7,19 +7,19 @@ export interface UpdateStepInput {
   finishedAt?: Date;
   inputSummary?: Prisma.InputJsonValue;
   outputSummary?: Prisma.InputJsonValue;
-  errorCode?: string;
-  errorMessage?: string;
-  errorStack?: string;
+  errorCode?: string | null;
+  errorMessage?: string | null;
+  errorStack?: string | null;
 }
 
 export interface UpdateJobInput {
   status?: JobStatus;
-  currentStep?: JobStepName;
-  errorCode?: string;
-  errorMessage?: string;
-  errorStack?: string;
+  currentStep?: JobStepName | null;
+  errorCode?: string | null;
+  errorMessage?: string | null;
+  errorStack?: string | null;
   startedAt?: Date;
-  finishedAt?: Date;
+  finishedAt?: Date | null;
 }
 
 export interface ListJobsParams {

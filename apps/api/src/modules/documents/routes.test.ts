@@ -21,6 +21,8 @@ function fakeDeps(): AppDeps {
       REDIS_URL: 'redis://localhost:6379',
       QDRANT_URL: 'http://localhost:6333',
       DATA_DIR: './data',
+      EMBEDDING_MODEL: 'text-embedding-3-small',
+      EMBEDDING_DIM: 1536,
       LOG_LEVEL: 'fatal',
     },
     db: {
@@ -36,6 +38,7 @@ function fakeDeps(): AppDeps {
     },
     prisma: {} as AppDeps['prisma'],
     storage: {} as AppDeps['storage'],
+    queue: { close: vi.fn().mockResolvedValue(undefined) },
     documents: {
       ingestFile: vi.fn(),
       ingestText: vi.fn(),
@@ -45,6 +48,7 @@ function fakeDeps(): AppDeps {
       updateDocument: vi.fn(),
       deleteDocument: vi.fn(),
     } as unknown as AppDeps['documents'],
+    jobs: {} as AppDeps['jobs'],
     urlFetcher: {
       fetch: vi.fn(),
     } as unknown as AppDeps['urlFetcher'],

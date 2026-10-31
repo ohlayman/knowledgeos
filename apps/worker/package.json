@@ -1,0 +1,31 @@
+{
+  "name": "@kos/worker",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/server.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "dev": "tsx watch src/server.ts",
+    "start": "node dist/server.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint src",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@kos/chunking": "workspace:*",
+    "@kos/database": "workspace:*",
+    "@kos/embeddings": "workspace:*",
+    "@kos/parser": "workspace:*",
+    "@kos/queue": "workspace:*",
+    "@kos/retrieval": "workspace:*",
+    "@kos/shared": "workspace:*",
+    "@kos/storage": "workspace:*",
+    "dotenv": "^16.4.7"
+  },
+  "devDependencies": {
+    "pdf-lib": "^1.17.1",
+    "tsx": "^4.19.2",
+    "vitest": "^2.1.9"
+  }
+}

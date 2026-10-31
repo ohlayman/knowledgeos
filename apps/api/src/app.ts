@@ -5,6 +5,7 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import { ApiError, toErrorEnvelope } from '@kos/shared';
 import type { AppDeps } from './deps.js';
 import { documentRoutes } from './modules/documents/routes.js';
+import { jobRoutes } from './modules/jobs/routes.js';
 import { healthRoutes } from './routes/health.js';
 
 export function buildApp(deps: AppDeps): FastifyInstance {
@@ -31,6 +32,7 @@ export function buildApp(deps: AppDeps): FastifyInstance {
 
   app.register(healthRoutes, { deps });
   app.register(documentRoutes, { deps });
+  app.register(jobRoutes, { deps });
 
   return app;
 }

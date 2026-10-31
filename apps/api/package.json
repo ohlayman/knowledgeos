@@ -17,6 +17,7 @@
     "@fastify/multipart": "^10.1.6",
     "@kos/database": "workspace:*",
     "@kos/parser": "workspace:^",
+    "@kos/queue": "workspace:^",
     "@kos/shared": "workspace:*",
     "@kos/storage": "workspace:*",
     "dotenv": "^18.0.9",
