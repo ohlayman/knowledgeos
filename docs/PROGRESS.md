@@ -7,9 +7,9 @@
 
 ## 1. 当前结论
 
-- **当前阶段：** M8 验收完成：PRD 22.1 全部通过，性能与安全报告产出，发现并修复 4 个缺陷；仅剩 M8-T5 打 tag / GitHub Release，需用户确认。
+- **当前阶段：** M8 验收完成，PRD 22.1 全部通过；M8-T5 发布由用户决定暂缓，代码已推送 main，未打 tag、未创建 Release。
 - **当前版本：** V1。
-- **下一步：** M8-T5 发布（需确认）→ V1.5 开发。
+- **下一步：** 等待用户决定是否启动 V1.5（Wiki）开发。
 - **环境说明：** 本机原生 PostgreSQL 占用 5432，compose 的 Postgres 映射到宿主 5433；`.env.example` 已同步。
 - **集成测试：** Turbo 2 默认 strict 环境透传，跑真实依赖需 `RUN_DB_INTEGRATION=1 pnpm test -- --env-mode=loose`。
 - **阻塞：** 无。
@@ -162,7 +162,7 @@
 | M8-T2 性能测试 | DONE | 2026-11-01 | 2026-11-01 | `pnpm bench:v1`：接口 P95 16ms、检索 62ms、首 token 560ms、处理中 13ms；见 `docs/PERFORMANCE_REPORT.md` |
 | M8-T3 安全测试 | DONE | 2026-11-01 | 2026-11-01 | `docs/SECURITY_REPORT.md`：SSRF、伪装文件、密钥、注入均通过 |
 | M8-T4 缺陷修复 | DONE | 2026-11-01 | 2026-11-01 | 重导入 500、注入逃逸、抽屉键盘、批量异常中断、降级标注均已修复并回归 |
-| M8-T5 发布 | TODO | — | — | 打 tag / GitHub Release 需用户确认 |
+| M8-T5 发布 | TODO | — | — | 用户决定暂缓（2026-11-01）；未打 tag、未创建 Release |
 
 ---
 
