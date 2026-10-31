@@ -55,6 +55,12 @@ describe('parseHtml', () => {
     expect(doc.warnings).toContain('readability_fallback');
   });
 
+  it('正文没有结构化标签时按纯文本兜底', () => {
+    const doc = parseHtml('<html><body>裸文本内容</body></html>');
+
+    expect(doc.blocks.map((block) => block.text)).toEqual(['裸文本内容']);
+  });
+
   it('空 HTML 返回空文档', () => {
     const doc = parseHtml('');
 

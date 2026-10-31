@@ -1,6 +1,12 @@
 import { basename, extname } from 'node:path';
-import type { DocumentRepository } from '@kos/database';
-import { contentHash, fileHash, normalizeUrl } from '@kos/shared';
+import type {
+  DocumentListResult,
+  DocumentRepository,
+  SourceType,
+  VersionStatus,
+} from '@kos/database';
+import { parseDocument, parsePlainText, type ParsedDocument } from '@kos/parser';
+import { ApiError, contentHash, fileHash, normalizeUrl } from '@kos/shared';
 import { buildObjectKey, type StorageAdapter } from '@kos/storage';
 
 export interface IngestFileInput {
@@ -30,6 +36,30 @@ export interface IngestFileResult {
   jobId?: string;
 }
 
+interface SourceInput {
+  type: 'file' | 'url' | 'manual';
+  fingerprint: string;
+  identifier: string;
+  metadata?: { finalUrl: string };
+}
+
+interface VersionFiles {
+  fileHash?: string;
+  storageKey?: string;
+  storageSize?: number;
+  mimeType?: string;
+  originalFilename?: string;
+}
+
+interface CommitInput {
+  parsed: ParsedDocument;
+  source: SourceInput;
+  title: string;
+  tags: string[];
+  files: VersionFiles;
+  persist: () => Promise<void>;
+}
+
 export class DocumentService {
   constructor(
     private readonly documents: DocumentRepository,
@@ -37,95 +67,183 @@ export class DocumentService {
   ) {}
 
   async ingestFile(input: IngestFileInput): Promise<IngestFileResult> {
-    const hash = fileHash(input.buffer);
-    const existing = await this.documents.findVersionByFileHash(hash);
-    if (existing) {
+    const rawHash = fileHash(input.buffer);
+    const source: SourceInput = {
+      type: 'file',
+      fingerprint: input.fileName.trim().toLowerCase(),
+      identifier: input.fileName,
+    };
+
+    const exactDuplicate = await this.documents.findVersionByFileHash(rawHash);
+    if (exactDuplicate) {
+      await this.documents.attachSource(exactDuplicate.documentId, source);
       return {
         status: 'duplicate',
-        documentId: existing.documentId,
-        versionId: existing.versionId,
+        documentId: exactDuplicate.documentId,
+        versionId: exactDuplicate.versionId,
       };
     }
 
-    const storageKey = buildObjectKey(hash);
-    await this.storage.put(storageKey, input.buffer, input.mimeType);
+    const parsed = await parseDocument(input.mimeType, input.buffer);
+    const storageKey = buildObjectKey(rawHash);
 
-    const fingerprint = input.fileName.trim().toLowerCase();
-    const source = await this.documents.findDocumentBySource('file', fingerprint);
-    const title = basename(input.fileName, extname(input.fileName)) || input.fileName;
-
-    if (source) {
-      const appended = await this.documents.appendVersion(source.documentId, {
-        // M2-T10 replaces this with the normalized-content hash after parsing.
-        contentHash: hash,
-        fileHash: hash,
-        storageKey,
-        storageSize: input.buffer.length,
-        mimeType: input.mimeType,
-        originalFilename: input.fileName,
-        sourceId: source.sourceId,
-      });
-
-      return {
-        status: 'queued',
-        documentId: source.documentId,
-        versionId: appended.versionId,
-        jobId: appended.jobId,
-      };
-    }
-
-    const created = await this.documents.createWithVersion({
-      title,
+    return this.commitParsed({
+      parsed,
+      source,
+      title: basename(input.fileName, extname(input.fileName)) || input.fileName,
       tags: input.tags,
-      source: {
-        type: 'file',
-        fingerprint,
-        identifier: input.fileName,
-      },
-      version: {
-        contentHash: hash,
-        fileHash: hash,
+      files: {
+        fileHash: rawHash,
         storageKey,
         storageSize: input.buffer.length,
         mimeType: input.mimeType,
         originalFilename: input.fileName,
       },
+      persist: () => this.storage.put(storageKey, input.buffer, input.mimeType),
     });
-
-    return { status: 'queued', ...created };
   }
 
   async ingestText(input: IngestTextInput): Promise<IngestFileResult> {
-    const hash = contentHash(input.content);
-    const fingerprint = input.title.trim().toLowerCase();
-    const source = {
-      type: 'manual' as const,
-      fingerprint,
-      identifier: input.title,
+    const content = Buffer.from(input.content, 'utf8');
+    const storageKey = buildObjectKey(fileHash(content));
+
+    return this.commitParsed({
+      parsed: parsePlainText(input.content),
+      source: {
+        type: 'manual',
+        fingerprint: input.title.trim().toLowerCase(),
+        identifier: input.title,
+      },
+      title: input.title,
+      tags: input.tags,
+      files: {
+        storageKey,
+        storageSize: content.length,
+        mimeType: 'text/plain',
+        originalFilename: `${input.title}.txt`,
+      },
+      persist: () => this.storage.put(storageKey, content, 'text/plain'),
+    });
+  }
+
+  async ingestUrl(input: IngestUrlInput): Promise<IngestFileResult> {
+    const rawHash = fileHash(input.buffer);
+    const source: SourceInput = {
+      type: 'url',
+      fingerprint: normalizeUrl(input.url),
+      identifier: input.url,
+      metadata: { finalUrl: input.finalUrl },
     };
 
-    const existing = await this.documents.findVersionByContentHash(hash);
-    if (existing) {
-      await this.documents.attachSource(existing.documentId, source);
+    const exactDuplicate = await this.documents.findVersionByFileHash(rawHash);
+    if (exactDuplicate) {
+      await this.documents.attachSource(exactDuplicate.documentId, source);
       return {
         status: 'duplicate',
-        documentId: existing.documentId,
-        versionId: existing.versionId,
+        documentId: exactDuplicate.documentId,
+        versionId: exactDuplicate.versionId,
       };
     }
 
-    const storageKey = buildObjectKey(hash);
-    const content = Buffer.from(input.content, 'utf8');
-    await this.storage.put(storageKey, content, 'text/markdown');
+    const parsed = await parseDocument(input.mimeType, input.buffer);
+    const storageKey = buildObjectKey(rawHash);
 
-    const existingDocument = await this.documents.findDocumentBySource('manual', fingerprint);
+    return this.commitParsed({
+      parsed,
+      source,
+      title: new URL(input.url).hostname,
+      tags: [],
+      files: {
+        fileHash: rawHash,
+        storageKey,
+        storageSize: input.buffer.length,
+        mimeType: input.mimeType,
+        originalFilename: input.url,
+      },
+      persist: () => this.storage.put(storageKey, input.buffer, input.mimeType),
+    });
+  }
+
+  async listDocuments(params: {
+    status?: VersionStatus;
+    type?: SourceType;
+    tag?: string;
+    q?: string;
+    cursor?: string;
+    limit?: number;
+  }): Promise<DocumentListResult> {
+    return this.documents.list({
+      ...(params.status ? { status: params.status } : {}),
+      ...(params.type ? { type: params.type } : {}),
+      ...(params.tag ? { tags: [params.tag] } : {}),
+      ...(params.q ? { q: params.q } : {}),
+      ...(params.cursor ? { cursor: params.cursor } : {}),
+      ...(params.limit ? { limit: params.limit } : {}),
+    });
+  }
+
+  async getDocument(id: string) {
+    const document = await this.documents.getById(id);
+    if (!document || document.isDeleted) {
+      throw new ApiError('NOT_FOUND', '文档不存在');
+    }
+
+    const versions = await this.documents.listVersions(id);
+    return { ...document, versions };
+  }
+
+  async updateDocument(id: string, input: { title?: string; tags?: string[] }) {
+    await this.requireDocument(id);
+    await this.documents.update(id, input);
+    return this.getDocument(id);
+  }
+
+  async deleteDocument(id: string): Promise<void> {
+    await this.requireDocument(id);
+    await this.documents.softDelete(id);
+  }
+
+  private async requireDocument(id: string) {
+    const document = await this.documents.getById(id);
+    if (!document || document.isDeleted) {
+      throw new ApiError('NOT_FOUND', '文档不存在');
+    }
+    return document;
+  }
+
+  private async commitParsed(input: CommitInput): Promise<IngestFileResult> {
+    const hash = contentHash(input.parsed.text);
+
+    const sameContent = await this.documents.findVersionByContentHash(hash);
+    if (sameContent) {
+      await this.documents.attachSource(sameContent.documentId, input.source);
+      return {
+        status: 'duplicate',
+        documentId: sameContent.documentId,
+        versionId: sameContent.versionId,
+      };
+    }
+
+    await input.persist();
+
+    const version = {
+      contentHash: hash,
+      normalizedText: input.parsed.text,
+      charCount: input.parsed.text.length,
+      metadata: { ...input.parsed.metadata },
+      ...(input.parsed.pages.length > 0 ? { pageCount: input.parsed.pages.length } : {}),
+      ...(input.parsed.metadata.language ? { language: input.parsed.metadata.language } : {}),
+      ...(input.parsed.warnings.length > 0 ? { parseWarnings: input.parsed.warnings } : {}),
+      ...input.files,
+    };
+
+    const existingDocument = await this.documents.findDocumentBySource(
+      input.source.type,
+      input.source.fingerprint,
+    );
     if (existingDocument) {
       const appended = await this.documents.appendVersion(existingDocument.documentId, {
-        contentHash: hash,
-        storageKey,
-        storageSize: content.length,
-        mimeType: 'text/markdown',
-        originalFilename: `${input.title}.md`,
+        ...version,
         sourceId: existingDocument.sourceId,
       });
 
@@ -140,75 +258,8 @@ export class DocumentService {
     const created = await this.documents.createWithVersion({
       title: input.title,
       tags: input.tags,
-      source,
-      version: {
-        contentHash: hash,
-        storageKey,
-        storageSize: content.length,
-        mimeType: 'text/markdown',
-        originalFilename: `${input.title}.md`,
-      },
-    });
-
-    return { status: 'queued', ...created };
-  }
-
-  async ingestUrl(input: IngestUrlInput): Promise<IngestFileResult> {
-    const hash = fileHash(input.buffer);
-    const fingerprint = normalizeUrl(input.url);
-    const source = {
-      type: 'url' as const,
-      fingerprint,
-      identifier: input.url,
-      metadata: { finalUrl: input.finalUrl },
-    };
-
-    const existing = await this.documents.findVersionByFileHash(hash);
-    if (existing) {
-      await this.documents.attachSource(existing.documentId, source);
-      return {
-        status: 'duplicate',
-        documentId: existing.documentId,
-        versionId: existing.versionId,
-      };
-    }
-
-    const storageKey = buildObjectKey(hash);
-    await this.storage.put(storageKey, input.buffer, input.mimeType);
-
-    const title = new URL(input.url).hostname;
-    const existingDocument = await this.documents.findDocumentBySource('url', fingerprint);
-    if (existingDocument) {
-      const appended = await this.documents.appendVersion(existingDocument.documentId, {
-        contentHash: hash,
-        fileHash: hash,
-        storageKey,
-        storageSize: input.buffer.length,
-        mimeType: input.mimeType,
-        originalFilename: input.url,
-        sourceId: existingDocument.sourceId,
-      });
-
-      return {
-        status: 'queued',
-        documentId: existingDocument.documentId,
-        versionId: appended.versionId,
-        jobId: appended.jobId,
-      };
-    }
-
-    const created = await this.documents.createWithVersion({
-      title,
-      tags: [],
-      source,
-      version: {
-        contentHash: hash,
-        fileHash: hash,
-        storageKey,
-        storageSize: input.buffer.length,
-        mimeType: input.mimeType,
-        originalFilename: input.url,
-      },
+      source: input.source,
+      version,
     });
 
     return { status: 'queued', ...created };

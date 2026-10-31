@@ -42,6 +42,10 @@ export class DocumentBuilder {
     return this.blocks.find((block) => block.kind === kind);
   }
 
+  get hasBlocks(): boolean {
+    return this.blocks.length > 0;
+  }
+
   addPage(page: ParsedPage): void {
     this.pages.push(page);
   }

@@ -1,6 +1,13 @@
 import multipart from '@fastify/multipart';
 import type { FastifyPluginAsync } from 'fastify';
-import { ApiError, LIMITS, TextDocumentInputSchema, UrlImportInputSchema } from '@kos/shared';
+import {
+  ApiError,
+  DocumentListQuerySchema,
+  LIMITS,
+  TextDocumentInputSchema,
+  UpdateDocumentInputSchema,
+  UrlImportInputSchema,
+} from '@kos/shared';
 import type { AppDeps } from '../../deps.js';
 import { detectFileType } from './file-type.js';
 
@@ -156,5 +163,35 @@ export const documentRoutes: FastifyPluginAsync<{ deps: AppDeps }> = async (app,
     return reply.status(202).send({
       items: results.filter((item): item is UploadItem => item !== undefined),
     });
+  });
+
+  app.get('/api/v1/documents', async (request, reply) => {
+    const parsed = DocumentListQuerySchema.safeParse(request.query);
+    if (!parsed.success) {
+      throw new ApiError('INVALID_ARGUMENT', '查询参数不合法');
+    }
+
+    return reply.send(await opts.deps.documents.listDocuments(parsed.data));
+  });
+
+  app.get('/api/v1/documents/:id', async (request) => {
+    const { id } = request.params as { id: string };
+    return opts.deps.documents.getDocument(id);
+  });
+
+  app.patch('/api/v1/documents/:id', async (request) => {
+    const parsed = UpdateDocumentInputSchema.safeParse(request.body);
+    if (!parsed.success) {
+      throw new ApiError('INVALID_ARGUMENT', '标题或标签不合法');
+    }
+
+    const { id } = request.params as { id: string };
+    return opts.deps.documents.updateDocument(id, parsed.data);
+  });
+
+  app.delete('/api/v1/documents/:id', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    await opts.deps.documents.deleteDocument(id);
+    return reply.status(204).send();
   });
 };

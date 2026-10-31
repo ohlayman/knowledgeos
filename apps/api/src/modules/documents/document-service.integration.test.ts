@@ -67,6 +67,41 @@ describe.skipIf(!enabled)('DocumentService', () => {
     const detail = await new DocumentRepository(prisma).getById(first.documentId);
     expect(detail?.tags).toEqual(['test']);
     expect(detail?.currentVersion?.versionNo).toBe(2);
+    expect(detail?.currentVersion?.normalizedText).toBe('version two');
+
+    const versions = await prisma.documentVersion.findMany({
+      where: { documentId: first.documentId },
+      orderBy: { versionNo: 'asc' },
+    });
+    expect(versions.map((item) => item.isCurrent)).toEqual([false, true]);
+    expect(versions[1]?.charCount).toBe('version two'.length);
+  });
+
+  it('同一内容以不同来源导入时归并到同一文档', async () => {
+    const title = `Cross ${randomUUID()}`;
+    const content = `同一段内容 ${randomUUID()}`;
+    const textFileName = `${title}.txt`;
+
+    const first = await service.ingestText({ title, content, tags: [] });
+    expect(first.status).toBe('queued');
+
+    const sameContentFile = await service.ingestFile({
+      fileName: textFileName,
+      buffer: Buffer.from(content, 'utf8'),
+      mimeType: 'text/plain',
+      tags: [],
+    });
+    expect(sameContentFile.status).toBe('duplicate');
+    expect(sameContentFile.documentId).toBe(first.documentId);
+
+    const detail = await new DocumentRepository(prisma).getById(first.documentId);
+    expect(detail?.sources).toHaveLength(2);
+    expect(detail?.currentVersion?.versionNo).toBe(1);
+
+    await prisma.document.deleteMany({ where: { id: first.documentId } });
+    await prisma.source.deleteMany({
+      where: { fingerprint: { in: [title.toLowerCase(), textFileName.toLowerCase()] } },
+    });
   });
 
   it('ingests manual text, dedupes content, and appends versions by title', async () => {
@@ -102,6 +137,40 @@ describe.skipIf(!enabled)('DocumentService', () => {
     await prisma.source.deleteMany({
       where: { fingerprint: { in: [title.toLowerCase(), copyTitle.toLowerCase()] } },
     });
+  });
+
+  it('lists, filters, updates and soft deletes a document', async () => {
+    const title = `List ${randomUUID()}`;
+    const tag = `tag-${randomUUID().slice(0, 8)}`;
+    const created = await service.ingestText({
+      title,
+      content: `列表内容 ${randomUUID()}`,
+      tags: [tag],
+    });
+
+    const listed = await service.listDocuments({ tag, type: 'manual', limit: 10 });
+    expect(listed.items.some((item) => item.id === created.documentId)).toBe(true);
+
+    const detail = await service.getDocument(created.documentId);
+    expect(detail.title).toBe(title);
+    expect(detail.versions).toHaveLength(1);
+
+    const updated = await service.updateDocument(created.documentId, {
+      title: `${title} 改名`,
+      tags: ['renamed'],
+    });
+    expect(updated.title).toBe(`${title} 改名`);
+    expect(updated.tags).toEqual(['renamed']);
+
+    await service.deleteDocument(created.documentId);
+    await expect(service.getDocument(created.documentId)).rejects.toMatchObject({
+      code: 'NOT_FOUND',
+    });
+    const afterDelete = await service.listDocuments({ tag, limit: 10 });
+    expect(afterDelete.items.some((item) => item.id === created.documentId)).toBe(false);
+
+    await prisma.document.deleteMany({ where: { id: created.documentId } });
+    await prisma.source.deleteMany({ where: { fingerprint: title.toLowerCase() } });
   });
 
   it('ingests a URL, dedupes content, and appends versions by URL', async () => {

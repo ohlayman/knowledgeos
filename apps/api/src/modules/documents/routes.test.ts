@@ -40,6 +40,10 @@ function fakeDeps(): AppDeps {
       ingestFile: vi.fn(),
       ingestText: vi.fn(),
       ingestUrl: vi.fn(),
+      listDocuments: vi.fn(),
+      getDocument: vi.fn(),
+      updateDocument: vi.fn(),
+      deleteDocument: vi.fn(),
     } as unknown as AppDeps['documents'],
     urlFetcher: {
       fetch: vi.fn(),
@@ -354,6 +358,134 @@ describe('POST /api/v1/documents/urls', () => {
 
     expect(response.statusCode).toBe(400);
     expect(response.json().error.code).toBe('INVALID_ARGUMENT');
+    await app.close();
+  });
+});
+
+describe('document queries', () => {
+  it('lists documents with filters, cursor and limit', async () => {
+    const deps = fakeDeps();
+    vi.mocked(deps.documents.listDocuments).mockResolvedValue({
+      items: [],
+      nextCursor: 'cursor-2',
+    });
+    const app = buildApp(deps);
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/documents?status=ready&type=url&tag=rag&q=%E6%A3%80%E7%B4%A2&limit=5&cursor=00000000-0000-7000-8000-000000000001',
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ items: [], nextCursor: 'cursor-2' });
+    expect(deps.documents.listDocuments).toHaveBeenCalledWith({
+      status: 'ready',
+      type: 'url',
+      tag: 'rag',
+      q: '检索',
+      limit: 5,
+      cursor: '00000000-0000-7000-8000-000000000001',
+    });
+    await app.close();
+  });
+
+  it('rejects an out-of-range limit', async () => {
+    const deps = fakeDeps();
+    const app = buildApp(deps);
+
+    const response = await app.inject({ method: 'GET', url: '/api/v1/documents?limit=1000' });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json().error.code).toBe('INVALID_ARGUMENT');
+    await app.close();
+  });
+
+  it('returns a document detail', async () => {
+    const deps = fakeDeps();
+    vi.mocked(deps.documents.getDocument).mockResolvedValue({
+      id: 'doc-1',
+      title: '混合检索',
+      tags: ['rag'],
+      currentVersion: { id: 'ver-1', versionNo: 1, status: 'ready' },
+      versions: [{ id: 'ver-1', versionNo: 1 }],
+      sources: [{ id: 'src-1', type: 'file', identifier: 'notes.md' }],
+    } as unknown as Awaited<ReturnType<typeof deps.documents.getDocument>>);
+    const app = buildApp(deps);
+
+    const response = await app.inject({ method: 'GET', url: '/api/v1/documents/doc-1' });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().id).toBe('doc-1');
+    expect(deps.documents.getDocument).toHaveBeenCalledWith('doc-1');
+    await app.close();
+  });
+
+  it('returns 404 for a missing document', async () => {
+    const deps = fakeDeps();
+    vi.mocked(deps.documents.getDocument).mockRejectedValue(new ApiError('NOT_FOUND'));
+    const app = buildApp(deps);
+
+    const response = await app.inject({ method: 'GET', url: '/api/v1/documents/doc-missing' });
+
+    expect(response.statusCode).toBe(404);
+    expect(response.json().error.code).toBe('NOT_FOUND');
+    await app.close();
+  });
+
+  it('updates title and tags', async () => {
+    const deps = fakeDeps();
+    vi.mocked(deps.documents.updateDocument).mockResolvedValue({ id: 'doc-1' } as never);
+    const app = buildApp(deps);
+
+    const response = await app.inject({
+      method: 'PATCH',
+      url: '/api/v1/documents/doc-1',
+      payload: { title: '新标题', tags: ['rag', '检索'] },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(deps.documents.updateDocument).toHaveBeenCalledWith('doc-1', {
+      title: '新标题',
+      tags: ['rag', '检索'],
+    });
+    await app.close();
+  });
+
+  it('rejects an empty patch body', async () => {
+    const deps = fakeDeps();
+    const app = buildApp(deps);
+
+    const response = await app.inject({
+      method: 'PATCH',
+      url: '/api/v1/documents/doc-1',
+      payload: {},
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json().error.code).toBe('INVALID_ARGUMENT');
+    await app.close();
+  });
+
+  it('soft deletes a document', async () => {
+    const deps = fakeDeps();
+    vi.mocked(deps.documents.deleteDocument).mockResolvedValue(undefined);
+    const app = buildApp(deps);
+
+    const response = await app.inject({ method: 'DELETE', url: '/api/v1/documents/doc-1' });
+
+    expect(response.statusCode).toBe(204);
+    expect(deps.documents.deleteDocument).toHaveBeenCalledWith('doc-1');
+    await app.close();
+  });
+
+  it('returns 404 when deleting a missing document', async () => {
+    const deps = fakeDeps();
+    vi.mocked(deps.documents.deleteDocument).mockRejectedValue(new ApiError('NOT_FOUND'));
+    const app = buildApp(deps);
+
+    const response = await app.inject({ method: 'DELETE', url: '/api/v1/documents/doc-missing' });
+
+    expect(response.statusCode).toBe(404);
     await app.close();
   });
 });

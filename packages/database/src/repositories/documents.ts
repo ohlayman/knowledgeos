@@ -18,6 +18,21 @@ const JOB_STEPS: JobStepName[] = [
   'index',
 ];
 
+export interface VersionWriteInput {
+  contentHash: string;
+  fileHash?: string;
+  storageKey?: string;
+  storageSize?: number;
+  mimeType?: string;
+  originalFilename?: string;
+  normalizedText?: string;
+  charCount?: number;
+  pageCount?: number;
+  language?: string;
+  metadata?: Prisma.InputJsonValue;
+  parseWarnings?: Prisma.InputJsonValue;
+}
+
 export interface CreateDocumentInput {
   title: string;
   tags?: string[];
@@ -30,28 +45,16 @@ export interface CreateDocumentInput {
     title?: string;
     metadata?: Prisma.InputJsonValue;
   };
-  version: {
-    contentHash: string;
-    fileHash?: string;
-    storageKey?: string;
-    storageSize?: number;
-    mimeType?: string;
-    originalFilename?: string;
-  };
+  version: VersionWriteInput;
 }
 
-export interface AppendVersionInput {
-  contentHash: string;
-  fileHash?: string;
-  storageKey?: string;
-  storageSize?: number;
-  mimeType?: string;
-  originalFilename?: string;
+export interface AppendVersionInput extends VersionWriteInput {
   sourceId?: string;
 }
 
 export interface ListDocumentsParams {
   status?: VersionStatus;
+  type?: SourceType;
   tags?: string[];
   q?: string;
   cursor?: string;
@@ -161,6 +164,12 @@ export class DocumentRepository {
           storageSize: input.version.storageSize,
           mimeType: input.version.mimeType,
           originalFilename: input.version.originalFilename,
+          normalizedText: input.version.normalizedText,
+          charCount: input.version.charCount ?? 0,
+          pageCount: input.version.pageCount,
+          language: input.version.language,
+          metadata: input.version.metadata,
+          parseWarnings: input.version.parseWarnings,
           status: 'queued',
           isCurrent: true,
         },
@@ -278,6 +287,12 @@ export class DocumentRepository {
           storageSize: input.storageSize,
           mimeType: input.mimeType,
           originalFilename: input.originalFilename,
+          normalizedText: input.normalizedText,
+          charCount: input.charCount ?? 0,
+          pageCount: input.pageCount,
+          language: input.language,
+          metadata: input.metadata,
+          parseWarnings: input.parseWarnings,
           status: 'queued',
           isCurrent: true,
         },
@@ -316,6 +331,7 @@ export class DocumentRepository {
     const where: Prisma.DocumentWhereInput = {
       ...(params.includeDeleted ? {} : { isDeleted: false }),
       ...(params.status ? { currentVersion: { status: params.status } } : {}),
+      ...(params.type ? { sources: { some: { source: { type: params.type } } } } : {}),
       ...(params.tags?.length ? { tags: { hasSome: params.tags } } : {}),
       ...(params.q
         ? {
@@ -369,6 +385,16 @@ export class DocumentRepository {
 
   async updateTags(id: string, tags: string[]): Promise<void> {
     await this.prisma.document.update({ where: { id }, data: { tags } });
+  }
+
+  async update(id: string, input: { title?: string; tags?: string[] }): Promise<void> {
+    await this.prisma.document.update({
+      where: { id },
+      data: {
+        ...(input.title === undefined ? {} : { title: input.title }),
+        ...(input.tags === undefined ? {} : { tags: input.tags }),
+      },
+    });
   }
 
   async softDelete(id: string): Promise<void> {

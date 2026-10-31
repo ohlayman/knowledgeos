@@ -141,7 +141,12 @@ export function parseHtml(html: string): ParsedDocument {
     ? parseHTML(`<html><body>${article!.content}</body></html>`).document
     : document;
 
-  walk(contentDocument.body as unknown as HtmlElement, builder);
+  const body = contentDocument.body as unknown as HtmlElement;
+  walk(body, builder);
+
+  if (!builder.hasBlocks) {
+    builder.add('paragraph', body.textContent ?? '');
+  }
 
   if (!useArticle) {
     builder.warn('readability_fallback');
