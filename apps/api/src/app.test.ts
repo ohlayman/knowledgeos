@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import { buildApp } from './app.js';
+import type { AppDeps } from './deps.js';
 
-function fakeDeps() {
+function fakeDeps(): AppDeps {
   return {
     env: {
       NODE_ENV: 'test' as const,
@@ -25,6 +26,9 @@ function fakeDeps() {
     qdrant: {
       ping: vi.fn().mockResolvedValue(undefined),
     },
+    prisma: {} as AppDeps['prisma'],
+    storage: {} as AppDeps['storage'],
+    documents: { ingestFile: vi.fn() } as unknown as AppDeps['documents'],
   };
 }
 
@@ -54,7 +58,7 @@ describe('health routes', () => {
 
   it('returns 503 and names the failing dependency', async () => {
     const deps = fakeDeps();
-    deps.db.ping.mockRejectedValueOnce(new Error('database down'));
+    vi.mocked(deps.db.ping).mockRejectedValueOnce(new Error('database down'));
     const app = buildApp(deps);
 
     const response = await app.inject({ method: 'GET', url: '/api/v1/health/ready' });

@@ -81,6 +81,39 @@ export class DocumentRepository {
       : null;
   }
 
+  async findVersionByFileHash(
+    fileHash: string,
+  ): Promise<{ documentId: string; versionId: string } | null> {
+    const version = await this.prisma.documentVersion.findFirst({
+      where: { fileHash },
+      select: { id: true, documentId: true },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return version ? { documentId: version.documentId, versionId: version.id } : null;
+  }
+
+  async findDocumentBySource(
+    type: SourceType,
+    fingerprint: string,
+  ): Promise<{ documentId: string; sourceId: string; currentVersionId: string | null } | null> {
+    const link = await this.prisma.documentSource.findFirst({
+      where: { source: { is: { type, fingerprint } } },
+      select: {
+        document: { select: { id: true, currentVersionId: true } },
+        source: { select: { id: true } },
+      },
+    });
+
+    return link
+      ? {
+          documentId: link.document.id,
+          sourceId: link.source.id,
+          currentVersionId: link.document.currentVersionId,
+        }
+      : null;
+  }
+
   async createWithVersion(
     input: CreateDocumentInput,
   ): Promise<{ documentId: string; versionId: string; jobId: string }> {

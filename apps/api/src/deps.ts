@@ -1,6 +1,8 @@
 import { Redis } from 'ioredis';
-import { Pool } from 'pg';
+import { createPrismaClient, DocumentRepository, type PrismaClient } from '@kos/database';
 import type { Env } from '@kos/shared';
+import { LocalStorageAdapter, type StorageAdapter } from '@kos/storage';
+import { DocumentService } from './modules/documents/document-service.js';
 
 export interface Pingable {
   ping(): Promise<void>;
@@ -15,14 +17,15 @@ export interface AppDeps {
   db: Pingable & Closable;
   redis: Pingable & Closable;
   qdrant: Pingable;
+  prisma: PrismaClient;
+  storage: StorageAdapter;
+  documents: DocumentService;
 }
 
 export function createDeps(env: Env): AppDeps {
-  const pool = new Pool({
-    connectionString: env.DATABASE_URL,
-    max: 10,
-    connectionTimeoutMillis: 3000,
-  });
+  const prisma = createPrismaClient(env.DATABASE_URL);
+  const storage = new LocalStorageAdapter(env.DATA_DIR);
+  const documents = new DocumentService(new DocumentRepository(prisma), storage);
 
   const redis = new Redis(env.REDIS_URL, {
     lazyConnect: true,
@@ -36,12 +39,15 @@ export function createDeps(env: Env): AppDeps {
 
   return {
     env,
+    prisma,
+    storage,
+    documents,
     db: {
       async ping() {
-        await pool.query('SELECT 1');
+        await prisma.$queryRaw`SELECT 1`;
       },
       async close() {
-        await pool.end();
+        await prisma.$disconnect();
       },
     },
     redis: {

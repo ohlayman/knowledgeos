@@ -1,0 +1,184 @@
+import FormData from 'form-data';
+import { describe, expect, it, vi } from 'vitest';
+import type { AppDeps } from '../../deps.js';
+import { buildApp } from '../../app.js';
+
+interface UploadFile {
+  name: string;
+  type: string;
+  buffer: Buffer;
+}
+
+function fakeDeps(): AppDeps {
+  return {
+    env: {
+      NODE_ENV: 'test',
+      HOST: '127.0.0.1',
+      PORT: 3000,
+      WEB_ORIGIN: 'http://localhost:5173',
+      DATABASE_URL: 'postgresql://user:pass@localhost:5432/knowledgeos',
+      REDIS_URL: 'redis://localhost:6379',
+      QDRANT_URL: 'http://localhost:6333',
+      DATA_DIR: './data',
+      LOG_LEVEL: 'fatal',
+    },
+    db: {
+      ping: vi.fn().mockResolvedValue(undefined),
+      close: vi.fn().mockResolvedValue(undefined),
+    },
+    redis: {
+      ping: vi.fn().mockResolvedValue(undefined),
+      close: vi.fn().mockResolvedValue(undefined),
+    },
+    qdrant: {
+      ping: vi.fn().mockResolvedValue(undefined),
+    },
+    prisma: {} as AppDeps['prisma'],
+    storage: {} as AppDeps['storage'],
+    documents: {
+      ingestFile: vi.fn(),
+    } as unknown as AppDeps['documents'],
+  };
+}
+
+function multipart(files: UploadFile[], fields: Record<string, string> = {}) {
+  const form = new FormData();
+  for (const [key, value] of Object.entries(fields)) {
+    form.append(key, value);
+  }
+  for (const file of files) {
+    form.append('files', file.buffer, {
+      filename: file.name,
+      contentType: file.type,
+    });
+  }
+  return { payload: form.getBuffer(), headers: form.getHeaders() };
+}
+
+describe('POST /api/v1/documents/files', () => {
+  it('uploads a markdown file and returns a queued item', async () => {
+    const deps = fakeDeps();
+    vi.mocked(deps.documents.ingestFile).mockResolvedValue({
+      status: 'queued',
+      documentId: 'doc-1',
+      versionId: 'ver-1',
+      jobId: 'job-1',
+    });
+    const app = buildApp(deps);
+    const body = multipart(
+      [{ name: 'notes.md', type: 'text/markdown', buffer: Buffer.from('# Hello\n') }],
+      { tags: 'rag,test' },
+    );
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/documents/files',
+      headers: body.headers,
+      payload: body.payload,
+    });
+
+    expect(response.statusCode).toBe(202);
+    expect(response.json()).toEqual({
+      items: [
+        {
+          fileName: 'notes.md',
+          status: 'queued',
+          documentId: 'doc-1',
+          versionId: 'ver-1',
+          jobId: 'job-1',
+        },
+      ],
+    });
+    expect(deps.documents.ingestFile).toHaveBeenCalledWith(
+      expect.objectContaining({
+        fileName: 'notes.md',
+        mimeType: 'text/markdown',
+        tags: ['rag', 'test'],
+      }),
+    );
+    await app.close();
+  });
+
+  it('rejects a disguised executable based on its magic bytes', async () => {
+    const deps = fakeDeps();
+    const app = buildApp(deps);
+    const body = multipart([
+      {
+        name: 'notes.md',
+        type: 'text/markdown',
+        buffer: Buffer.from([0x4d, 0x5a, 0x90, 0x00, 0x03, 0x00, 0x00, 0x00]),
+      },
+    ]);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/documents/files',
+      headers: body.headers,
+      payload: body.payload,
+    });
+
+    expect(response.statusCode).toBe(202);
+    expect(response.json().items[0]).toMatchObject({
+      fileName: 'notes.md',
+      status: 'failed',
+      errorCode: 'UNSUPPORTED_FORMAT',
+    });
+    expect(deps.documents.ingestFile).not.toHaveBeenCalled();
+    await app.close();
+  });
+
+  it('returns duplicate when the service detects the same file', async () => {
+    const deps = fakeDeps();
+    vi.mocked(deps.documents.ingestFile).mockResolvedValue({
+      status: 'duplicate',
+      documentId: 'doc-1',
+    });
+    const app = buildApp(deps);
+    const body = multipart([
+      { name: 'notes.md', type: 'text/markdown', buffer: Buffer.from('# Hello\n') },
+    ]);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/documents/files',
+      headers: body.headers,
+      payload: body.payload,
+    });
+
+    expect(response.statusCode).toBe(202);
+    expect(response.json().items[0]).toEqual({
+      fileName: 'notes.md',
+      status: 'duplicate',
+      documentId: 'doc-1',
+    });
+    await app.close();
+  });
+
+  it('rejects a batch larger than 200 files', async () => {
+    const deps = fakeDeps();
+    vi.mocked(deps.documents.ingestFile).mockResolvedValue({
+      status: 'queued',
+      documentId: 'doc-1',
+      versionId: 'ver-1',
+      jobId: 'job-1',
+    });
+    const app = buildApp(deps);
+    const files = Array.from({ length: 201 }, (_, index) => ({
+      name: `file-${index}.md`,
+      type: 'text/markdown',
+      buffer: Buffer.from('x'),
+    }));
+    const body = multipart(files);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/documents/files',
+      headers: body.headers,
+      payload: body.payload,
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json().error.code).toBe('BATCH_TOO_LARGE');
+    await app.close();
+  });
+});
