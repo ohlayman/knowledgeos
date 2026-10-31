@@ -207,3 +207,4 @@ curl -OJ http://127.0.0.1:3000/api/v1/export
 | `pnpm eval:retrieval` | 50 条检索评测（Recall@10 / MRR@10） |
 | `pnpm bench:qdrant` | Qdrant 10 万块压测 |
 | `pnpm --filter @kos/web exec playwright test` | 端到端测试 |
+| `pnpm clean:test-data` | 清理中断测试留下的示例文档（按标题/来源前缀） |

@@ -18,7 +18,8 @@
     "bench:qdrant": "pnpm --filter @kos/retrieval build && pnpm --filter @kos/evaluation bench:qdrant",
     "eval:retrieval": "pnpm --filter @kos/evaluation eval:retrieval",
     "backup": "node scripts/backup.mjs",
-    "restore": "node scripts/restore.mjs"
+    "restore": "node scripts/restore.mjs",
+    "clean:test-data": "pnpm --filter @kos/database exec node scripts/clean-test-data.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",
