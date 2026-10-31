@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Env } from '@kos/shared';
-import { collectionName, createEmbeddingProvider } from './embeddings.js';
+import { collectionName, createEmbeddingProvider } from './config.js';
 
 function env(overrides: Partial<Env>): Env {
   return {

@@ -4,10 +4,16 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   resolve: {
     alias: {
+      '@kos/embeddings': fileURLToPath(
+        new URL('../../packages/embeddings/src/index.ts', import.meta.url),
+      ),
       '@kos/database': fileURLToPath(
         new URL('../../packages/database/src/index.ts', import.meta.url),
       ),
       '@kos/parser': fileURLToPath(new URL('../../packages/parser/src/index.ts', import.meta.url)),
+      '@kos/retrieval': fileURLToPath(
+        new URL('../../packages/retrieval/src/index.ts', import.meta.url),
+      ),
       '@kos/shared': fileURLToPath(new URL('../../packages/shared/src/index.ts', import.meta.url)),
       '@kos/storage': fileURLToPath(
         new URL('../../packages/storage/src/index.ts', import.meta.url),

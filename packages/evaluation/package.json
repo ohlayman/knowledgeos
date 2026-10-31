@@ -6,12 +6,19 @@
   "scripts": {
     "bench:qdrant": "tsx src/bench-qdrant.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "lint": "eslint src"
+    "lint": "eslint src",
+    "test": "vitest run",
+    "eval:retrieval": "tsx src/eval-retrieval.ts"
   },
   "dependencies": {
-    "@kos/retrieval": "workspace:*"
+    "@kos/database": "workspace:*",
+    "@kos/embeddings": "workspace:*",
+    "@kos/retrieval": "workspace:*",
+    "@kos/shared": "workspace:*",
+    "dotenv": "^18.0.9"
   },
   "devDependencies": {
-    "tsx": "^4.23.15"
+    "tsx": "^4.23.15",
+    "vitest": "^2.1.9"
   }
 }

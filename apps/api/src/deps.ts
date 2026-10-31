@@ -5,7 +5,9 @@ import {
   JobRepository,
   type PrismaClient,
 } from '@kos/database';
+import { collectionName, createEmbeddingProvider } from '@kos/embeddings';
 import { cancelIngest, createIngestQueue, enqueueIngest, retryIngest } from '@kos/queue';
+import { QdrantStore, RetrievalService } from '@kos/retrieval';
 import type { Env } from '@kos/shared';
 import { LocalStorageAdapter, type StorageAdapter } from '@kos/storage';
 import { DocumentService, type IngestEnqueuer } from './modules/documents/document-service.js';
@@ -30,6 +32,7 @@ export interface AppDeps {
   queue: Closable;
   documents: DocumentService;
   jobs: JobService;
+  retrieval: RetrievalService;
   urlFetcher: UrlFetcher;
 }
 
@@ -54,6 +57,17 @@ export function createDeps(env: Env): AppDeps {
     },
     cancel: (jobId) => cancelIngest(queue, jobId),
   });
+  const qdrantStore = new QdrantStore({
+    url: env.QDRANT_URL,
+    ...(env.QDRANT_API_KEY ? { apiKey: env.QDRANT_API_KEY } : {}),
+    collection: collectionName(env.EMBEDDING_MODEL, env.EMBEDDING_DIM),
+    vectorSize: env.EMBEDDING_DIM,
+  });
+  const retrieval = new RetrievalService({
+    prisma,
+    embeddings: createEmbeddingProvider(env),
+    qdrant: qdrantStore,
+  });
   const urlFetcher = createUrlFetcher();
 
   const redis = new Redis(env.REDIS_URL, {
@@ -73,6 +87,7 @@ export function createDeps(env: Env): AppDeps {
     queue,
     documents,
     jobs,
+    retrieval,
     urlFetcher,
     db: {
       async ping() {

@@ -1,0 +1,50 @@
+{"id":"a01-q1","question":"混合检索同时使用向量 说明了什么？","expectedSlug":"a01","type":"fact"}
+{"id":"a01-q2","question":"倒数排名融合用 RR 的关键点是什么？","expectedSlug":"a01","type":"fact"}
+{"id":"a01-q3","question":"混合检索对语义相近与 有什么作用？","expectedSlug":"a01","type":"open"}
+{"id":"a01-q4","question":"混合检索：混合检索同时使用向量 指什么？","expectedSlug":"a01","type":"fact"}
+{"id":"a01-q5","question":"如何理解倒数排名融合用 RR？","expectedSlug":"a01","type":"procedure"}
+{"id":"a02-q1","question":"切块按标题分组并在句 说明了什么？","expectedSlug":"a02","type":"fact"}
+{"id":"a02-q2","question":"窗口重叠百分之十用于 的关键点是什么？","expectedSlug":"a02","type":"fact"}
+{"id":"a02-q3","question":"代码块与表格独立成块 有什么作用？","expectedSlug":"a02","type":"open"}
+{"id":"a02-q4","question":"分块策略：切块按标题分组并在句 指什么？","expectedSlug":"a02","type":"fact"}
+{"id":"a02-q5","question":"如何理解窗口重叠百分之十用于？","expectedSlug":"a02","type":"procedure"}
+{"id":"a03-q1","question":"向量数据库通过 HN 说明了什么？","expectedSlug":"a03","type":"fact"}
+{"id":"a03-q2","question":"payload 支持 的关键点是什么？","expectedSlug":"a03","type":"fact"}
+{"id":"a03-q3","question":"向量写入前需要归一化 有什么作用？","expectedSlug":"a03","type":"open"}
+{"id":"a03-q4","question":"向量数据库：向量数据库通过 HN 指什么？","expectedSlug":"a03","type":"fact"}
+{"id":"a03-q5","question":"如何理解payload 支持？","expectedSlug":"a03","type":"procedure"}
+{"id":"a04-q1","question":"倒数排名融合只依赖排 说明了什么？","expectedSlug":"a04","type":"fact"}
+{"id":"a04-q2","question":"融合公式的分母是常数 的关键点是什么？","expectedSlug":"a04","type":"fact"}
+{"id":"a04-q3","question":"同分时按最高单路排名 有什么作用？","expectedSlug":"a04","type":"open"}
+{"id":"a04-q4","question":"倒数排名融合：倒数排名融合只依赖排 指什么？","expectedSlug":"a04","type":"fact"}
+{"id":"a04-q5","question":"如何理解融合公式的分母是常数？","expectedSlug":"a04","type":"procedure"}
+{"id":"a05-q1","question":"嵌入模型把文本映射到 说明了什么？","expectedSlug":"a05","type":"fact"}
+{"id":"a05-q2","question":"批量调用时受批次大小 的关键点是什么？","expectedSlug":"a05","type":"fact"}
+{"id":"a05-q3","question":"超时与重试需要指数退 有什么作用？","expectedSlug":"a05","type":"open"}
+{"id":"a05-q4","question":"文本向量化：嵌入模型把文本映射到 指什么？","expectedSlug":"a05","type":"fact"}
+{"id":"a05-q5","question":"如何理解批量调用时受批次大小？","expectedSlug":"a05","type":"procedure"}
+{"id":"a06-q1","question":"文本层抽取按页记录页 说明了什么？","expectedSlug":"a06","type":"fact"}
+{"id":"a06-q2","question":"逐页重复的页眉页脚会 的关键点是什么？","expectedSlug":"a06","type":"fact"}
+{"id":"a06-q3","question":"扫描件没有可提取文字 有什么作用？","expectedSlug":"a06","type":"open"}
+{"id":"a06-q4","question":"PDF 解析：文本层抽取按页记录页 指什么？","expectedSlug":"a06","type":"fact"}
+{"id":"a06-q5","question":"如何理解逐页重复的页眉页脚会？","expectedSlug":"a06","type":"procedure"}
+{"id":"a07-q1","question":"正文提取使用 rea 说明了什么？","expectedSlug":"a07","type":"fact"}
+{"id":"a07-q2","question":"正文过短时回退到全文 的关键点是什么？","expectedSlug":"a07","type":"fact"}
+{"id":"a07-q3","question":"代码块与引用块在提取 有什么作用？","expectedSlug":"a07","type":"open"}
+{"id":"a07-q4","question":"网页正文提取：正文提取使用 rea 指什么？","expectedSlug":"a07","type":"fact"}
+{"id":"a07-q5","question":"如何理解正文过短时回退到全文？","expectedSlug":"a07","type":"procedure"}
+{"id":"a08-q1","question":"域名解析的全部地址都 说明了什么？","expectedSlug":"a08","type":"fact"}
+{"id":"a08-q2","question":"连接锁定已校验的 I 的关键点是什么？","expectedSlug":"a08","type":"fact"}
+{"id":"a08-q3","question":"重定向逐跳重新校验并 有什么作用？","expectedSlug":"a08","type":"open"}
+{"id":"a08-q4","question":"SSRF 防护：域名解析的全部地址都 指什么？","expectedSlug":"a08","type":"fact"}
+{"id":"a08-q5","question":"如何理解连接锁定已校验的 I？","expectedSlug":"a08","type":"procedure"}
+{"id":"a09-q1","question":"角标编号必须落在本次 说明了什么？","expectedSlug":"a09","type":"fact"}
+{"id":"a09-q2","question":"引用块必须实际参与本 的关键点是什么？","expectedSlug":"a09","type":"fact"}
+{"id":"a09-q3","question":"已删除的块保留引用快 有什么作用？","expectedSlug":"a09","type":"open"}
+{"id":"a09-q4","question":"引用校验：角标编号必须落在本次 指什么？","expectedSlug":"a09","type":"fact"}
+{"id":"a09-q5","question":"如何理解引用块必须实际参与本？","expectedSlug":"a09","type":"procedure"}
+{"id":"a10-q1","question":"对账补投队列中缺失的 说明了什么？","expectedSlug":"a10","type":"fact"}
+{"id":"a10-q2","question":"对账删除向量库中没有 的关键点是什么？","expectedSlug":"a10","type":"fact"}
+{"id":"a10-q3","question":"对账连续失败三次写入 有什么作用？","expectedSlug":"a10","type":"open"}
+{"id":"a10-q4","question":"对账任务：对账补投队列中缺失的 指什么？","expectedSlug":"a10","type":"fact"}
+{"id":"a10-q5","question":"如何理解对账删除向量库中没有？","expectedSlug":"a10","type":"procedure"}

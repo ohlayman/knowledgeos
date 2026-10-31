@@ -1,7 +1,19 @@
-import { FakeEmbeddingProvider, OpenAICompatibleEmbeddingProvider } from '@kos/embeddings';
 import type { Env } from '@kos/shared';
+import { FakeEmbeddingProvider } from './fake.js';
+import { OpenAICompatibleEmbeddingProvider } from './openai.js';
+import type { EmbeddingProvider } from './types.js';
 
-export function createEmbeddingProvider(env: Env) {
+type EmbeddingEnv = Pick<
+  Env,
+  | 'NODE_ENV'
+  | 'EMBEDDING_PROVIDER'
+  | 'EMBEDDING_BASE_URL'
+  | 'EMBEDDING_API_KEY'
+  | 'EMBEDDING_MODEL'
+  | 'EMBEDDING_DIM'
+>;
+
+export function createEmbeddingProvider(env: EmbeddingEnv): EmbeddingProvider {
   const useFake = env.EMBEDDING_PROVIDER === 'fake' || !env.EMBEDDING_API_KEY;
 
   if (useFake) {

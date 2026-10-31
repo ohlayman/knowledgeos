@@ -57,6 +57,7 @@ describe.skipIf(!enabled)('POST /api/v1/documents/files batch import', () => {
       storage,
       queue: { close: async () => undefined },
       documents: new DocumentService(new DocumentRepository(prisma), storage),
+      retrieval: {} as AppDeps['retrieval'],
       jobs: {} as AppDeps['jobs'],
       urlFetcher: {
         fetch: async () => {

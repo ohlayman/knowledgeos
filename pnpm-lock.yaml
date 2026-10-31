@@ -44,12 +44,18 @@ importers:
       '@kos/database':
         specifier: workspace:*
         version: link:../../packages/database
+      '@kos/embeddings':
+        specifier: workspace:^
+        version: link:../../packages/embeddings
       '@kos/parser':
         specifier: workspace:^
         version: link:../../packages/parser
       '@kos/queue':
         specifier: workspace:^
         version: link:../../packages/queue
+      '@kos/retrieval':
+        specifier: workspace:^
+        version: link:../../packages/retrieval
       '@kos/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -169,13 +175,28 @@ importers:
 
   packages/evaluation:
     dependencies:
+      '@kos/database':
+        specifier: workspace:*
+        version: link:../database
+      '@kos/embeddings':
+        specifier: workspace:*
+        version: link:../embeddings
       '@kos/retrieval':
         specifier: workspace:*
         version: link:../retrieval
+      '@kos/shared':
+        specifier: workspace:*
+        version: link:../shared
+      dotenv:
+        specifier: ^18.0.9
+        version: 18.0.9
     devDependencies:
       tsx:
         specifier: ^4.23.15
         version: 4.23.15
+      vitest:
+        specifier: ^2.1.9
+        version: 2.1.9(@types/node@22.10.0)
 
   packages/parser:
     dependencies:
@@ -223,6 +244,12 @@ importers:
 
   packages/retrieval:
     dependencies:
+      '@kos/database':
+        specifier: workspace:*
+        version: link:../database
+      '@kos/embeddings':
+        specifier: workspace:*
+        version: link:../embeddings
       '@kos/shared':
         specifier: workspace:*
         version: link:../shared

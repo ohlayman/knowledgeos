@@ -1,3 +1,4 @@
+export { collectionName, createEmbeddingProvider } from './config.js';
 export { FakeEmbeddingProvider } from './fake.js';
 export { OpenAICompatibleEmbeddingProvider } from './openai.js';
 export type { OpenAIEmbeddingOptions } from './openai.js';

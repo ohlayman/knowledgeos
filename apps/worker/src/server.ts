@@ -7,10 +7,10 @@ import {
   JobRepository,
 } from '@kos/database';
 import { createIngestQueue, createIngestWorker, enqueueIngest } from '@kos/queue';
+import { collectionName, createEmbeddingProvider } from '@kos/embeddings';
 import { QdrantStore } from '@kos/retrieval';
 import { loadEnv } from '@kos/shared';
 import { LocalStorageAdapter } from '@kos/storage';
-import { collectionName, createEmbeddingProvider } from './embeddings.js';
 import { runPipeline } from './pipeline.js';
 import { reconcileOnce, type ReconcileQueue } from './reconcile.js';
 
