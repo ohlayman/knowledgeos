@@ -7,9 +7,9 @@
 
 ## 1. 当前结论
 
-- **当前阶段：** M1 数据层完成，7/7 任务通过；准备进入 M2-T1。
+- **当前阶段：** M2 导入与解析进行中：StorageAdapter 与哈希工具已完成；下一步上传 API 与解析器。
 - **当前版本：** V1。
-- **下一步：** 实现 StorageAdapter 与哈希工具，开始导入与解析。
+- **下一步：** 实现文件上传 API（magic bytes、大小与数量限制）。
 - **环境说明：** 本机原生 PostgreSQL 占用 5432，compose 的 Postgres 映射到宿主 5433；`.env.example` 已同步。
 - **阻塞：** 无。
 
@@ -65,8 +65,8 @@
 
 | 任务 | 状态 | 开始 | 完成 | 证据 |
 | --- | --- | --- | --- | --- |
-| M2-T1 StorageAdapter | TODO | — | — | — |
-| M2-T2 哈希与规范化 | TODO | — | — | — |
+| M2-T1 StorageAdapter | DONE | 2026-11-01 | 2026-11-01 | `@kos/storage` 6/6 单测通过：原子写、读取流、存在/删除、路径穿越拒绝 |
+| M2-T2 哈希与规范化 | DONE | 2026-11-01 | 2026-11-01 | `normalizeText` / `contentHash` / `fileHash`；7/7 测试通过 |
 | M2-T3 文件上传 API | TODO | — | — | — |
 | M2-T4 手动文本 API | TODO | — | — | — |
 | M2-T5 URL 导入 + SSRF | TODO | — | — | — |
@@ -175,7 +175,7 @@
 | 首 token P95 | TODO | — | ≤ 2.5s |
 | 非 LLM 接口 P95 | TODO | — | ≤ 300ms |
 | 引用可解析率 | TODO | — | 100% |
-| 单测 | DONE | 11/11 通过（shared 6 + api 5） | 全绿 |
+| 单测 | DONE | 24/24 通过（shared 13 + api 5 + storage 6） | 全绿 |
 | 集成 | DONE | 6/6 通过（数据库仓储 5 + Qdrant 1） | 全绿 |
 | E2E | TODO | — | 全绿 |
 
@@ -191,3 +191,4 @@
 | 2026-11-01 | M1-T1/T2/T4 完成：Prisma Schema、两份迁移、种子数据；生成列与触发器已做真实写入/回滚验证 |
 | 2026-11-01 | M1-T5/T6/T7 完成：Qdrant 客户端与集成测试通过；A-2 压测 P95 92.6ms，保留 Qdrant |
 | 2026-11-01 | M1-T3 完成：四类仓储与 5 条集成测试；补 `documents.tags` 字段与 GIN 索引迁移 |
+| 2026-11-01 | M2-T1/T2 完成：本地 StorageAdapter 与哈希/规范化工具；单测 24/24 |
