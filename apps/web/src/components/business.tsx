@@ -75,6 +75,13 @@ export function CitationText({
   );
 }
 
+export function DegradedNote({ degraded }: { degraded: string[] }) {
+  if (degraded.length === 0) {
+    return null;
+  }
+  return <p className="tiny muted">降级：{degraded.join('、')}</p>;
+}
+
 export function PageHeader({
   title,
   subtitle,

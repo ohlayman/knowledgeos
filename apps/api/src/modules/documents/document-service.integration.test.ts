@@ -160,6 +160,34 @@ describe.skipIf(!enabled)('DocumentService', () => {
     });
   });
 
+  it('re-imports the same file after deletion as a new document', async () => {
+    const reimportName = `reimport-${runId}.md`;
+    const content = `重新导入 ${randomUUID()}`;
+
+    const first = await service.ingestFile({
+      fileName: reimportName,
+      buffer: Buffer.from(content),
+      mimeType: 'text/markdown',
+      tags: [],
+    });
+    await service.deleteDocument(first.documentId);
+
+    const again = await service.ingestFile({
+      fileName: reimportName,
+      buffer: Buffer.from(content),
+      mimeType: 'text/markdown',
+      tags: [],
+    });
+
+    expect(again.status).toBe('queued');
+    expect(again.documentId).not.toBe(first.documentId);
+
+    await prisma.document.deleteMany({
+      where: { id: { in: [first.documentId, again.documentId] } },
+    });
+    await prisma.source.deleteMany({ where: { fingerprint: reimportName.toLowerCase() } });
+  });
+
   it('lists, filters, updates and soft deletes a document', async () => {
     const title = `List ${randomUUID()}`;
     const tag = `tag-${randomUUID().slice(0, 8)}`;

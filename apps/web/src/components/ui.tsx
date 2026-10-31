@@ -1,4 +1,13 @@
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import { statusLabel, statusTone } from '../lib/format.js';
 
 export function Badge({
@@ -121,6 +130,9 @@ export function useToast() {
   return useContext(ToastContext);
 }
 
+const FOCUSABLE =
+  'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
 export function Drawer({
   title,
   onClose,
@@ -131,11 +143,49 @@ export function Drawer({
   children: ReactNode;
 }) {
   const titleId = useMemo(() => `drawer-${Math.random().toString(36).slice(2)}`, []);
+  const panelRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    panelRef.current?.focus();
+  }, []);
 
   return (
     <>
       <div className="drawer-scrim" onClick={onClose} aria-hidden="true" />
-      <aside className="drawer" role="dialog" aria-modal="true" aria-labelledby={titleId}>
+      <aside
+        ref={panelRef}
+        className="drawer"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
+        onKeyDown={(event) => {
+          if (event.key === 'Escape') {
+            event.stopPropagation();
+            onClose();
+            return;
+          }
+          if (event.key !== 'Tab') {
+            return;
+          }
+          const items = Array.from(
+            panelRef.current?.querySelectorAll<HTMLElement>(FOCUSABLE) ?? [],
+          );
+          if (items.length === 0) {
+            return;
+          }
+          const first = items[0]!;
+          const last = items.at(-1)!;
+          const active = document.activeElement;
+          if (event.shiftKey && (active === first || active === panelRef.current)) {
+            event.preventDefault();
+            last.focus();
+          } else if (!event.shiftKey && active === last) {
+            event.preventDefault();
+            first.focus();
+          }
+        }}
+      >
         <header className="drawer-head">
           <h2 id={titleId} style={{ fontSize: 16 }}>
             {title}

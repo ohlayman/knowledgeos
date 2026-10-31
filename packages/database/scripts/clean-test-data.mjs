@@ -45,6 +45,10 @@ const titlePatterns = [
   /^retention-/,
   /^dbg-/,
   /^e2e 笔记/i,
+  /^AC[- ]/i,
+  /^bench-/,
+  /^index-fail-/,
+  /^reimport-/,
   /^Test document$/,
   /^Manual /,
   /^Cross /,
@@ -79,10 +83,36 @@ const prefixes = [
   'retention-',
   'maintenance-',
   'e2e ',
+  'AC-',
+  'bench-',
+  'index-fail-',
+  'reimport-',
 ];
 const sources = await prisma.source.deleteMany({
   where: { OR: prefixes.map((prefix) => ({ fingerprint: { startsWith: prefix } })) },
 });
 
-console.log(`清理完成：${stale.length} 份测试文档、${sources.count} 条来源`);
+const conversationPatterns = [
+  /^conv-/,
+  /^AC /,
+  /^性能测试$/,
+  /^新会话$/,
+  /^向量召回负责什么/,
+  /^混合检索使用哪两路召回/,
+  /^引用校验如何工作/,
+  /^向量不可用时如何检索/,
+];
+const conversations = await prisma.conversation.findMany({ select: { id: true, title: true } });
+const staleConversations = conversations.filter((conversation) =>
+  conversationPatterns.some((pattern) => pattern.test(conversation.title)),
+);
+if (staleConversations.length > 0) {
+  await prisma.conversation.deleteMany({
+    where: { id: { in: staleConversations.map((item) => item.id) } },
+  });
+}
+
+console.log(
+  `清理完成：${stale.length} 份测试文档、${sources.count} 条来源、${staleConversations.length} 个测试会话`,
+);
 await prisma.$disconnect();

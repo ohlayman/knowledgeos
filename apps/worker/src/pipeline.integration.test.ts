@@ -153,6 +153,29 @@ describe.skipIf(!enabled)('ingest pipeline', () => {
     expect(second.map((chunk) => chunk.id)).toEqual(first.map((chunk) => chunk.id));
   });
 
+  it('does not mark the version ready when the index write fails', async () => {
+    const name = `index-fail-${randomUUID().slice(0, 8)}.md`;
+    const created = await createVersion('# 索引失败\n\n索引写入失败时不得标记就绪。', name);
+    documentIds.push(created.documentId);
+
+    const failingQdrant = {
+      ensureCollection: () => qdrant.ensureCollection(),
+      createPayloadIndexes: () => qdrant.createPayloadIndexes(),
+      upsert: (points: Parameters<QdrantStore['upsert']>[0]) => qdrant.upsert(points),
+      setCurrentVersion: async () => {
+        throw new ApiError('PROVIDER_UNAVAILABLE', '模拟索引写入失败');
+      },
+    } as unknown as QdrantStore;
+
+    await runPipeline({ ...deps(), qdrant: failingQdrant }, created.jobId);
+
+    const job = await jobs.getById(created.jobId);
+    const version = await documents.getVersionById(created.versionId);
+    expect(job?.status).toBe('failed');
+    expect(job?.steps.find((step) => step.step === 'index')?.status).toBe('failed');
+    expect(version?.status).not.toBe('ready');
+  });
+
   it('resumes from the first unfinished step', async () => {
     const name = `resume-${randomUUID().slice(0, 8)}.md`;
     const created = await createVersion('# 断点\n\n中断后不应重复解析。', name);

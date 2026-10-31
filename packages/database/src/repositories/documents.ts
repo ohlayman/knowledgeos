@@ -101,7 +101,7 @@ export class DocumentRepository {
     fingerprint: string,
   ): Promise<{ documentId: string; sourceId: string; currentVersionId: string | null } | null> {
     const link = await this.prisma.documentSource.findFirst({
-      where: { source: { is: { type, fingerprint } } },
+      where: { source: { is: { type, fingerprint } }, document: { isDeleted: false } },
       select: {
         document: { select: { id: true, currentVersionId: true } },
         source: { select: { id: true } },

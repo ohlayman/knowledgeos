@@ -29,6 +29,9 @@ export function buildApp(deps: AppDeps): FastifyInstance {
 
   app.setErrorHandler((error, request, reply) => {
     const status = error instanceof ApiError ? error.status : 500;
+    if (status >= 500) {
+      request.log.error({ err: error }, 'request failed');
+    }
     void reply.status(status).send(toErrorEnvelope(error, request.id));
   });
 

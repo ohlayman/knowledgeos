@@ -16,8 +16,7 @@ export function AppRouter() {
           <Route index element={<DashboardPage />} />
           <Route path="library" element={<LibraryPage />} />
           <Route path="documents/:id" element={<DocumentPage />} />
-          <Route path="research" element={<ResearchPage />} />
-          <Route path="research/:id" element={<ResearchPage />} />
+          <Route path="research/:id?" element={<ResearchPage />} />
           <Route path="jobs" element={<JobsPage />} />
           <Route path="settings" element={<SettingsPage />} />
           <Route path="*" element={<NotFoundPage />} />

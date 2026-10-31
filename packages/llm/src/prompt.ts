@@ -1,7 +1,7 @@
 import { getEncoding, type Tiktoken } from 'js-tiktoken';
 import type { ChatMessage } from './types.js';
 
-export const PROMPT_VERSION = 'v1';
+export const PROMPT_VERSION = 'v2';
 export const DEFAULT_HISTORY_TOKEN_BUDGET = 3000;
 
 export interface PromptEvidence {
@@ -49,16 +49,24 @@ function messageTokens(message: ChatMessage): number {
   return countTokens(message.content) + 4;
 }
 
+function escapeAttribute(value: string): string {
+  return value.replace(/"/g, '&quot;');
+}
+
+function escapeEvidenceText(text: string): string {
+  return text.replace(/<\/evidence/gi, '&lt;/evidence');
+}
+
 function formatEvidence(evidence: PromptEvidence): string {
   const heading = evidence.headingPath?.length ? evidence.headingPath.join(' > ') : '';
   const attributes = [
-    `document="${evidence.documentTitle}"`,
-    `chunk="${evidence.chunkId}"`,
+    `document="${escapeAttribute(evidence.documentTitle)}"`,
+    `chunk="${escapeAttribute(evidence.chunkId)}"`,
     ...(evidence.page === undefined ? [] : [`page="${evidence.page}"`]),
-    ...(heading ? [`heading="${heading}"`] : []),
+    ...(heading ? [`heading="${escapeAttribute(heading)}"`] : []),
   ].join(' ');
 
-  return `[${evidence.ordinal}] ${attributes}\n${evidence.text}`;
+  return `[${evidence.ordinal}] ${attributes}\n${escapeEvidenceText(evidence.text)}`;
 }
 
 function trimHistory(

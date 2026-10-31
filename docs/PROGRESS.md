@@ -7,9 +7,9 @@
 
 ## 1. 当前结论
 
-- **当前阶段：** M7 运维与发布已完成：导出、清空、备份恢复演练、保留策略、可观测性、三个镜像与生产 compose、运维手册；下一步 M8 验收。
+- **当前阶段：** M8 验收完成：PRD 22.1 全部通过，性能与安全报告产出，发现并修复 4 个缺陷；仅剩 M8-T5 打 tag / GitHub Release，需用户确认。
 - **当前版本：** V1。
-- **下一步：** M8-T1 PRD 22.1 验收清单。
+- **下一步：** M8-T5 发布（需确认）→ V1.5 开发。
 - **环境说明：** 本机原生 PostgreSQL 占用 5432，compose 的 Postgres 映射到宿主 5433；`.env.example` 已同步。
 - **集成测试：** Turbo 2 默认 strict 环境透传，跑真实依赖需 `RUN_DB_INTEGRATION=1 pnpm test -- --env-mode=loose`。
 - **阻塞：** 无。
@@ -20,7 +20,7 @@
 
 | 版本 | PRD | 技术设计 | 数据库设计 | 实现计划 | 编码 |
 | --- | --- | --- | --- | --- | --- |
-| V1 | DONE | DONE | DONE | DONE | TODO |
+| V1 | DONE | DONE | DONE | DONE | DONE（M0–M8，发布待确认） |
 | V1.5 | DONE | DONE（扩展章节） | DONE（预留表） | DONE（里程碑） | BLOCKED（等 V1 验收） |
 | V2 | DONE | DONE（扩展章节） | DONE（预留表） | DONE（里程碑） | BLOCKED（等 V1.5） |
 | V3 | DONE | DONE（扩展章节） | DONE（预留表） | DONE（里程碑） | BLOCKED（等 V1 检索质量） |
@@ -158,11 +158,11 @@
 
 | 任务 | 状态 | 开始 | 完成 | 证据 |
 | --- | --- | --- | --- | --- |
-| M8-T1 PRD 22.1 验收 | TODO | — | — | — |
-| M8-T2 性能测试 | TODO | — | — | — |
-| M8-T3 安全测试 | TODO | — | — | — |
-| M8-T4 缺陷修复 | TODO | — | — | — |
-| M8-T5 发布 | TODO | — | — | — |
+| M8-T1 PRD 22.1 验收 | DONE | 2026-11-01 | 2026-11-01 | `docs/ACCEPTANCE_V1.md`：22/22 通过；`pnpm accept:v1` 12/12 |
+| M8-T2 性能测试 | DONE | 2026-11-01 | 2026-11-01 | `pnpm bench:v1`：接口 P95 16ms、检索 62ms、首 token 560ms、处理中 13ms；见 `docs/PERFORMANCE_REPORT.md` |
+| M8-T3 安全测试 | DONE | 2026-11-01 | 2026-11-01 | `docs/SECURITY_REPORT.md`：SSRF、伪装文件、密钥、注入均通过 |
+| M8-T4 缺陷修复 | DONE | 2026-11-01 | 2026-11-01 | 重导入 500、注入逃逸、抽屉键盘、批量异常中断、降级标注均已修复并回归 |
+| M8-T5 发布 | TODO | — | — | 打 tag / GitHub Release 需用户确认 |
 
 ---
 
@@ -170,15 +170,17 @@
 
 | 门禁 | 状态 | 当前值 | 门槛 |
 | --- | --- | --- | --- |
-| 检索 Recall@10 | DONE | 0.96 | ≥ 0.85 |
-| 检索 MRR | DONE | 0.94 | ≥ 0.6 |
+| 检索 Recall@10 | DONE | 1.00 | ≥ 0.85 |
+| 检索 MRR | DONE | 1.00 | ≥ 0.6 |
 | Qdrant P95（10 万块/3 条件） | DONE | 92.6ms | ≤ 300ms（>600ms 切 pgvector） |
-| 首 token P95 | TODO | — | ≤ 2.5s |
-| 非 LLM 接口 P95 | TODO | — | ≤ 300ms |
-| 引用可解析率 | TODO | — | 100% |
-| 单测 | DONE | 173/173 通过（api 56 + shared 36 + parser 25 + web 11 + embeddings 10 + llm 10 + chunking 8 + storage 8 + retrieval 7 + queue 2） | 全绿 |
-| 集成 | DONE | 51/51 通过（api 24 + 检索 10 + 流水线 5 + 对账 3 + 保留 2 + 数据库 5 + 队列 1 + 评测 1） | 全绿 |
-| E2E | DONE | 2/2 通过（导入→阅读→问答→引用→任务→主题；移动端导航） | 全绿 |
+| 首 token P95 | DONE | 560ms（Fake 模型） | ≤ 2.5s |
+| 非 LLM 接口 P95 | DONE | 16ms | ≤ 300ms |
+| 处理中普通接口 P95 | DONE | 13ms | ≤ 500ms |
+| 引用可解析率 | DONE | 100%（20/20） | 100% |
+| 正文对比度 | DONE | 最低 5.00:1 | ≥ 4.5:1 |
+| 单测 | DONE | 180/180 通过（api 56 + shared 36 + parser 25 + web 16 + embeddings 10 + llm 12 + chunking 8 + storage 8 + retrieval 7 + queue 2） | 全绿 |
+| 集成 | DONE | 53/53 通过（api 25 + 检索 10 + 流水线 6 + 对账 3 + 保留 2 + 数据库 5 + 队列 1 + 评测 1） | 全绿 |
+| E2E | DONE | 7/7 通过（四档宽度、三态、键盘全流程、导入→阅读→问答→引用→任务→主题、移动端导航） | 全绿 |
 
 ---
 
@@ -204,3 +206,5 @@
 | 2026-11-01 | M5 完成：会话与 SSE 流式、Prompt、引用后校验、无证据与历史、反馈；引用校验与停止生成均有测试 |
 | 2026-11-01 | M6 完成：五个页面、四态、主题与响应式、⌘K、E2E；补齐 metrics/settings/chunks API 与密钥加密 |
 | 2026-11-01 | M7 完成：导出/清空、备份与恢复演练、保留策略、健康指标、生产镜像与 compose、运维手册 |
+| 2026-11-01 | M8-T1~T4 完成：PRD 22.1 22/22 验收、性能与安全报告；修复重导入 500、提示注入逃逸、抽屉键盘焦点、批量异常中断；单测 180、集成 53、E2E 7 |
+| 2026-11-01 | M8-T5 待确认：版本号、CHANGELOG、tag 与 GitHub Release |

@@ -25,7 +25,7 @@ function batchFiles() {
   for (let index = 0; index < 190; index += 1) {
     const name = `batch-${runId}-${index}.md`;
     fingerprints.push(name);
-    form.append('files', Buffer.from(`# 文档 ${index}\n\n正文内容 ${index}`, 'utf8'), {
+    form.append('files', Buffer.from(`# 文档 ${index}\n\n正文内容 ${index} ${runId}`, 'utf8'), {
       filename: name,
       contentType: 'text/markdown',
     });

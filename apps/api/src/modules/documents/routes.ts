@@ -69,7 +69,13 @@ export const documentRoutes: FastifyPluginAsync<{ deps: AppDeps }> = async (app,
             });
             continue;
           }
-          throw error;
+          request.log.error({ err: error, fileName }, 'file import failed');
+          items.push({
+            fileName,
+            status: 'failed',
+            errorCode: 'INTERNAL',
+            message: '文件处理失败，请稍后重试',
+          });
         }
       }
     } catch (error) {
@@ -153,7 +159,13 @@ export const documentRoutes: FastifyPluginAsync<{ deps: AppDeps }> = async (app,
             };
             continue;
           }
-          throw error;
+          request.log.error({ err: error, url }, 'url import failed');
+          results[index] = {
+            fileName: url,
+            status: 'failed',
+            errorCode: 'INTERNAL',
+            message: '链接处理失败，请稍后重试',
+          };
         }
       }
     };

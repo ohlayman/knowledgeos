@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { CitationText, PageHeader } from '../../components/business.js';
+import { CitationText, DegradedNote, PageHeader } from '../../components/business.js';
 import { Badge, EmptyState, StatusBadge, useToast } from '../../components/ui.js';
 import {
   useConversation,
@@ -222,9 +222,7 @@ export function ResearchPage() {
                       {live.error}
                     </p>
                   ) : null}
-                  {live.degraded.length > 0 ? (
-                    <p className="tiny muted">降级：{live.degraded.join('、')}</p>
-                  ) : null}
+                  <DegradedNote degraded={live.degraded} />
                 </div>
               </>
             ) : null}
