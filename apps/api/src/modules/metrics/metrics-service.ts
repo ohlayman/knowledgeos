@@ -1,10 +1,32 @@
 import type { PrismaClient } from '@kos/database';
 
+export interface QueueStats {
+  getJobCounts(): Promise<Record<string, number>>;
+}
+
 export interface DashboardMetrics {
   documents: { total: number; ready: number; processing: number; failed: number };
   chunks: { total: number; vectorReady: number };
   storage: { bytes: number };
   jobs: { queued: number; running: number; failed: number };
+  queue: {
+    waiting: number;
+    active: number;
+    failed: number;
+    completed: number;
+    backlog: number;
+    alert: boolean;
+  };
+  health: {
+    lastEvent: {
+      level: string;
+      type: string;
+      message: string;
+      createdAt: string;
+    } | null;
+  };
+  retrieval: { runs7d: number; p95Ms: number | null };
+  messages: { citationFailRate: number | null };
   recentDocuments: Array<{
     id: string;
     title: string;
@@ -22,10 +44,15 @@ export interface DashboardMetrics {
 }
 
 export class MetricsService {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(
+    private readonly prisma: PrismaClient,
+    private readonly queue?: QueueStats,
+  ) {}
 
   async overview(): Promise<DashboardMetrics> {
     const activeDocument = { isDeleted: false };
+
+    const since7d = new Date(Date.now() - 7 * 24 * 3600 * 1000);
 
     const [
       documentTotal,
@@ -36,6 +63,9 @@ export class MetricsService {
       jobsByStatus,
       recentDocuments,
       recentJobs,
+      lastEvent,
+      retrievalStats,
+      messageStats,
     ] = await Promise.all([
       this.prisma.document.count({ where: activeDocument }),
       this.prisma.documentVersion.groupBy({
@@ -75,7 +105,29 @@ export class MetricsService {
           document: { select: { title: true } },
         },
       }),
+      this.prisma.systemEvent.findFirst({ orderBy: { createdAt: 'desc' } }),
+      this.prisma.$queryRaw<Array<{ total: bigint; p95: number | null }>>`
+        SELECT count(*)::bigint AS total,
+               percentile_cont(0.95) WITHIN GROUP (ORDER BY duration_ms) AS p95
+        FROM retrieval_runs
+        WHERE created_at >= ${since7d}
+      `,
+      this.prisma.$queryRaw<Array<{ total: bigint; failed: bigint }>>`
+        SELECT count(*)::bigint AS total,
+               count(*) FILTER (
+                 WHERE citation_check IS NOT NULL
+                   AND citation_check->>'status' IN ('partial', 'failed')
+               )::bigint AS failed
+        FROM messages
+        WHERE role = 'assistant' AND created_at >= ${since7d}
+      `,
     ]);
+
+    const queueCounts: Record<string, number> = this.queue
+      ? await this.queue.getJobCounts().catch(() => ({}))
+      : {};
+    const waiting = Number(queueCounts.wait ?? 0) + Number(queueCounts.delayed ?? 0);
+    const backlog = waiting + Number(queueCounts.active ?? 0);
 
     const versionCounts = new Map(versionsByStatus.map((row) => [row.status, row._count._all]));
     const jobCounts = new Map(jobsByStatus.map((row) => [row.status, row._count._all]));
@@ -100,6 +152,34 @@ export class MetricsService {
         status: row.currentVersion?.status ?? 'queued',
         updatedAt: row.updatedAt,
       })),
+      queue: {
+        waiting,
+        active: Number(queueCounts.active ?? 0),
+        failed: Number(queueCounts.failed ?? 0),
+        completed: Number(queueCounts.completed ?? 0),
+        backlog,
+        alert: backlog > 100,
+      },
+      health: {
+        lastEvent: lastEvent
+          ? {
+              level: lastEvent.level,
+              type: lastEvent.type,
+              message: lastEvent.message,
+              createdAt: lastEvent.createdAt.toISOString(),
+            }
+          : null,
+      },
+      retrieval: {
+        runs7d: Number(retrievalStats[0]?.total ?? 0),
+        p95Ms: retrievalStats[0]?.p95 ?? null,
+      },
+      messages: {
+        citationFailRate:
+          Number(messageStats[0]?.total ?? 0) === 0
+            ? null
+            : Number(messageStats[0]?.failed ?? 0) / Number(messageStats[0]?.total ?? 1),
+      },
       recentJobs: recentJobs.map((row) => ({
         id: row.id,
         documentId: row.documentId,

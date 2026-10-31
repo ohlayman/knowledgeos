@@ -34,6 +34,7 @@ function fakeDeps(): AppDeps {
       listByVersion: vi.fn(),
       get: vi.fn(),
     } as unknown as AppDeps['chunks'],
+    maintenance: {} as AppDeps['maintenance'],
     urlFetcher: { fetch: vi.fn() },
   } as AppDeps;
 }

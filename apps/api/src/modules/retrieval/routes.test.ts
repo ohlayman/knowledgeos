@@ -30,6 +30,7 @@ function fakeDeps(): AppDeps {
     metrics: {} as AppDeps['metrics'],
     retrieval: { retrieve: vi.fn() } as unknown as AppDeps['retrieval'],
     chunks: {} as AppDeps['chunks'],
+    maintenance: {} as AppDeps['maintenance'],
     urlFetcher: { fetch: vi.fn() },
   } as AppDeps;
 }

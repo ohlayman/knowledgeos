@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { PageHeader, StorageMetric } from '../../components/business.js';
 import { Badge, ErrorState, Field, SkeletonList, useToast } from '../../components/ui.js';
 import {
+  useClearKnowledgeBase,
+  useExportBundle,
   useMetrics,
   useSaveProvider,
   useSettings,
@@ -96,8 +98,9 @@ export function SettingsPage() {
               </div>
               <p className="tiny muted">
                 原始文件只增不删，逻辑删除只修改数据库状态；物理清理由保留策略执行。
-                清空知识库将在运维里程碑（M7）提供，需要输入确认词。
               </p>
+              <ExportSection />
+              <DangerZone />
             </section>
           ) : null}
         </div>
@@ -465,6 +468,77 @@ function RetrievalTab({ settings }: { settings: Settings }) {
           </button>
         </div>
       </form>
+    </section>
+  );
+}
+
+function ExportSection() {
+  const exportBundle = useExportBundle();
+  const toast = useToast();
+
+  return (
+    <section className="card card-pad">
+      <h3 style={{ marginBottom: 4 }}>数据导出</h3>
+      <p className="tiny muted" style={{ marginBottom: 12 }}>
+        导出文档、版本、块、会话与设置（不含密钥明文），用于迁移或归档。
+      </p>
+      <button
+        type="button"
+        className="btn"
+        disabled={exportBundle.isPending}
+        onClick={() =>
+          exportBundle.mutate(undefined, {
+            onSuccess: () => toast('导出包已开始下载'),
+            onError: (error) => toast(errorMessage(error), 'error'),
+          })
+        }
+      >
+        {exportBundle.isPending ? '打包中…' : '下载导出包'}
+      </button>
+    </section>
+  );
+}
+
+function DangerZone() {
+  const [confirm, setConfirm] = useState('');
+  const clear = useClearKnowledgeBase();
+  const toast = useToast();
+
+  return (
+    <section className="card card-pad" style={{ borderColor: 'var(--state-danger-border)' }}>
+      <h3 style={{ marginBottom: 4, color: 'var(--danger)' }}>清空知识库</h3>
+      <p className="tiny muted" style={{ marginBottom: 12 }}>
+        删除全部文档、块、向量、对象存储与会话。此操作不可撤销，请先导出备份。
+      </p>
+      <div className="row">
+        <input
+          className="input"
+          style={{ width: 200 }}
+          placeholder="输入 DELETE 确认"
+          value={confirm}
+          onChange={(event) => setConfirm(event.target.value)}
+          aria-label="清空确认词"
+        />
+        <button
+          type="button"
+          className="btn danger"
+          disabled={confirm !== 'DELETE' || clear.isPending}
+          onClick={() => {
+            if (!window.confirm('确认清空全部知识库数据？')) {
+              return;
+            }
+            clear.mutate('DELETE', {
+              onSuccess: (result) => {
+                setConfirm('');
+                toast(`已清空 ${result.documents} 份文档`);
+              },
+              onError: (error) => toast(errorMessage(error), 'error'),
+            });
+          }}
+        >
+          {clear.isPending ? '清理中…' : '清空知识库'}
+        </button>
+      </div>
     </section>
   );
 }

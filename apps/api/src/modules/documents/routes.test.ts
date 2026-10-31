@@ -54,6 +54,7 @@ function fakeDeps(): AppDeps {
     retrieval: {} as AppDeps['retrieval'],
     jobs: {} as AppDeps['jobs'],
     chunks: {} as AppDeps['chunks'],
+    maintenance: {} as AppDeps['maintenance'],
     urlFetcher: {
       fetch: vi.fn(),
     } as unknown as AppDeps['urlFetcher'],

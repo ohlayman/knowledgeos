@@ -63,6 +63,7 @@ describe.skipIf(!enabled)('POST /api/v1/documents/files batch import', () => {
       metrics: {} as AppDeps['metrics'],
       jobs: {} as AppDeps['jobs'],
       chunks: {} as AppDeps['chunks'],
+      maintenance: {} as AppDeps['maintenance'],
       urlFetcher: {
         fetch: async () => {
           throw new Error('unused in batch import test');

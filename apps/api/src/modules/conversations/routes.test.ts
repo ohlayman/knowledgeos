@@ -46,6 +46,7 @@ function fakeDeps(): AppDeps {
     settings: {} as AppDeps['settings'],
     metrics: {} as AppDeps['metrics'],
     chunks: {} as AppDeps['chunks'],
+    maintenance: {} as AppDeps['maintenance'],
     urlFetcher: { fetch: vi.fn() },
   } as AppDeps;
 }

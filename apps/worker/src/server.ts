@@ -14,6 +14,7 @@ import { loadEnv } from '@kos/shared';
 import { LocalStorageAdapter, resolveDataDir } from '@kos/storage';
 import { runPipeline } from './pipeline.js';
 import { reconcileOnce, type ReconcileQueue } from './reconcile.js';
+import { runRetention } from './retention.js';
 
 loadDotenv({ path: fileURLToPath(new URL('../../../.env', import.meta.url)) });
 
@@ -89,9 +90,29 @@ const reconcileTimer = setInterval(
 );
 void reconcile();
 
+async function retention(): Promise<void> {
+  try {
+    const result = await runRetention(deps);
+    if (result.documents > 0 || result.retrievalRuns > 0) {
+      console.warn('retention result', result);
+    }
+  } catch (error) {
+    console.error('retention failed', error);
+  }
+}
+
+const retentionTimer = setInterval(
+  () => {
+    void retention();
+  },
+  24 * 60 * 60 * 1000,
+);
+void retention();
+
 async function shutdown(signal: string): Promise<void> {
   console.warn(`worker shutting down on ${signal}`);
   clearInterval(reconcileTimer);
+  clearInterval(retentionTimer);
   await worker.close();
   await ingestQueue.close();
   await prisma.$disconnect();

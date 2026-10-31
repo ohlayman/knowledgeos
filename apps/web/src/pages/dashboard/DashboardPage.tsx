@@ -76,6 +76,39 @@ export function DashboardPage() {
         <StorageMetric bytes={data.storage.bytes} />
       </div>
 
+      <section className="card card-pad" style={{ marginBottom: 20 }}>
+        <div className="between" style={{ marginBottom: 8 }}>
+          <h2 style={{ fontSize: 16 }}>系统健康</h2>
+          <span className={`badge ${data.queue.alert ? 'bad' : 'ok'}`}>
+            {data.queue.alert ? '队列积压' : '正常'}
+          </span>
+        </div>
+        <div className="row" style={{ gap: 24 }}>
+          <span className="tiny muted">
+            队列：等待 {data.queue.waiting} · 运行 {data.queue.active} · 失败 {data.queue.failed}
+          </span>
+          <span className="tiny muted">
+            检索 P95：
+            {data.retrieval.p95Ms === null ? '—' : `${Math.round(data.retrieval.p95Ms)}ms`}
+            （7 天 {data.retrieval.runs7d} 次）
+          </span>
+          <span className="tiny muted">
+            引用失败率：
+            {data.messages.citationFailRate === null
+              ? '—'
+              : `${Math.round(data.messages.citationFailRate * 100)}%`}
+          </span>
+          <span className="tiny muted">
+            最近事件：
+            {data.health.lastEvent
+              ? `${data.health.lastEvent.type} · ${data.health.lastEvent.message} · ${formatRelative(
+                  data.health.lastEvent.createdAt,
+                )}`
+              : '暂无'}
+          </span>
+        </div>
+      </section>
+
       <div className="grid grid-2">
         <section className="card card-pad">
           <div className="between" style={{ marginBottom: 12 }}>

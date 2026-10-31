@@ -19,6 +19,7 @@ import { createUrlFetcher, type UrlFetcher } from './modules/documents/url-fetch
 import { JobService } from './modules/jobs/job-service.js';
 import { ConversationService } from './modules/conversations/conversation-service.js';
 import { ChunkService } from './modules/chunks/chunk-service.js';
+import { MaintenanceService } from './modules/maintenance/maintenance-service.js';
 import { MetricsService } from './modules/metrics/metrics-service.js';
 import { SettingsService } from './modules/settings/settings-service.js';
 
@@ -45,6 +46,7 @@ export interface AppDeps {
   chunks: ChunkService;
   settings: SettingsService;
   metrics: MetricsService;
+  maintenance: MaintenanceService;
   urlFetcher: UrlFetcher;
 }
 
@@ -94,7 +96,8 @@ export async function createDeps(env: Env): Promise<AppDeps> {
   );
   const chunks = new ChunkService(prisma, new ChunkRepository(prisma));
   const settings = new SettingsService(prisma, env);
-  const metrics = new MetricsService(prisma);
+  const metrics = new MetricsService(prisma, queue);
+  const maintenance = new MaintenanceService(prisma, storage, qdrantStore);
   const urlFetcher = createUrlFetcher();
 
   const redis = new Redis(env.REDIS_URL, {
@@ -119,6 +122,7 @@ export async function createDeps(env: Env): Promise<AppDeps> {
     chunks,
     settings,
     metrics,
+    maintenance,
     urlFetcher,
     db: {
       async ping() {

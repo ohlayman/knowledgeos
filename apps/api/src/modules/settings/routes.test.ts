@@ -35,6 +35,7 @@ function fakeDeps(): AppDeps {
       testConnection: vi.fn(),
     } as unknown as AppDeps['settings'],
     chunks: {} as AppDeps['chunks'],
+    maintenance: {} as AppDeps['maintenance'],
     urlFetcher: { fetch: vi.fn() },
   } as AppDeps;
 }

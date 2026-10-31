@@ -27,7 +27,8 @@
     "fastify": "^5.12.7",
     "file-type": "^22.3.0",
     "ioredis": "^6.0.0",
-    "ipaddr.js": "^2.5.0"
+    "ipaddr.js": "^2.5.0",
+    "jszip": "^3.10.2"
   },
   "devDependencies": {
     "form-data": "^4.0.6",

@@ -102,6 +102,26 @@ export const MetricsSchema = z.object({
   chunks: z.object({ total: z.number(), vectorReady: z.number() }),
   storage: z.object({ bytes: z.number() }),
   jobs: z.object({ queued: z.number(), running: z.number(), failed: z.number() }),
+  queue: z.object({
+    waiting: z.number(),
+    active: z.number(),
+    failed: z.number(),
+    completed: z.number(),
+    backlog: z.number(),
+    alert: z.boolean(),
+  }),
+  health: z.object({
+    lastEvent: z
+      .object({
+        level: z.string(),
+        type: z.string(),
+        message: z.string(),
+        createdAt: z.string(),
+      })
+      .nullable(),
+  }),
+  retrieval: z.object({ runs7d: z.number(), p95Ms: z.number().nullable() }),
+  messages: z.object({ citationFailRate: z.number().nullable() }),
   recentDocuments: z.array(
     z.object({
       id: z.string(),

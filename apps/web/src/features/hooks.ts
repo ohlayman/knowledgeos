@@ -278,6 +278,38 @@ export function useSaveProvider() {
   });
 }
 
+export function useExportBundle() {
+  return useMutation({
+    mutationFn: async () => {
+      const response = await fetch('/api/v1/export');
+      if (!response.ok) {
+        throw new Error(`导出失败（HTTP ${response.status}）`);
+      }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `knowledgeos-export-${new Date().toISOString().slice(0, 10)}.zip`;
+      link.click();
+      URL.revokeObjectURL(url);
+    },
+  });
+}
+
+export function useClearKnowledgeBase() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (confirm: string) =>
+      apiFetch<{ documents: number; versions: number; objectsDeleted: number }>(
+        '/maintenance/clear',
+        { method: 'POST', body: JSON.stringify({ confirm }) },
+      ),
+    onSuccess: () => {
+      void client.invalidateQueries();
+    },
+  });
+}
+
 export function useTestConnection() {
   return useMutation({
     mutationFn: (input: {

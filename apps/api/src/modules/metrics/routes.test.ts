@@ -30,6 +30,7 @@ function fakeDeps(): AppDeps {
     settings: {} as AppDeps['settings'],
     metrics: { overview: vi.fn() } as unknown as AppDeps['metrics'],
     chunks: {} as AppDeps['chunks'],
+    maintenance: {} as AppDeps['maintenance'],
     urlFetcher: { fetch: vi.fn() },
   } as AppDeps;
 }
@@ -42,6 +43,10 @@ describe('GET /api/v1/metrics/overview', () => {
       chunks: { total: 10, vectorReady: 9 },
       storage: { bytes: 1024 },
       jobs: { queued: 1, running: 0, failed: 0 },
+      queue: { waiting: 1, active: 0, failed: 0, completed: 3, backlog: 1, alert: false },
+      health: { lastEvent: null },
+      retrieval: { runs7d: 2, p95Ms: 42 },
+      messages: { citationFailRate: null },
       recentDocuments: [],
       recentJobs: [],
     });
