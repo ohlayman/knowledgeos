@@ -25,6 +25,7 @@ function fakeDeps(): AppDeps {
     queue: { close: vi.fn() },
     documents: {} as AppDeps['documents'],
     jobs: {} as AppDeps['jobs'],
+    conversations: {} as AppDeps['conversations'],
     retrieval: { retrieve: vi.fn() } as unknown as AppDeps['retrieval'],
     urlFetcher: { fetch: vi.fn() },
   } as AppDeps;

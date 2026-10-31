@@ -48,6 +48,7 @@ function fakeDeps(): AppDeps {
       updateDocument: vi.fn(),
       deleteDocument: vi.fn(),
     } as unknown as AppDeps['documents'],
+    conversations: {} as AppDeps['conversations'],
     retrieval: {} as AppDeps['retrieval'],
     jobs: {} as AppDeps['jobs'],
     urlFetcher: {

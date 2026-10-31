@@ -9,7 +9,8 @@ import { DocumentService } from './document-service.js';
 
 const enabled = process.env.RUN_DB_INTEGRATION === '1' && Boolean(process.env.DATABASE_URL);
 const prisma = new PrismaClient();
-const fileName = `notes-${randomUUID()}.md`;
+const runId = randomUUID().slice(0, 8);
+const fileName = `notes-${runId}.md`;
 const fingerprint = fileName.toLowerCase();
 
 let root = '';
@@ -37,7 +38,7 @@ describe.skipIf(!enabled)('DocumentService', () => {
   it('ingests a file, detects duplicates, and appends a new version', async () => {
     const first = await service.ingestFile({
       fileName,
-      buffer: Buffer.from('# version one'),
+      buffer: Buffer.from(`# version one ${runId}`),
       mimeType: 'text/markdown',
       tags: ['test'],
     });
@@ -48,7 +49,7 @@ describe.skipIf(!enabled)('DocumentService', () => {
 
     const duplicate = await service.ingestFile({
       fileName: `copy-${fileName}`,
-      buffer: Buffer.from('# version one'),
+      buffer: Buffer.from(`# version one ${runId}`),
       mimeType: 'text/markdown',
       tags: [],
     });
@@ -57,7 +58,7 @@ describe.skipIf(!enabled)('DocumentService', () => {
 
     const second = await service.ingestFile({
       fileName,
-      buffer: Buffer.from('# version two'),
+      buffer: Buffer.from(`# version two ${runId}`),
       mimeType: 'text/markdown',
       tags: [],
     });
@@ -67,14 +68,14 @@ describe.skipIf(!enabled)('DocumentService', () => {
     const detail = await new DocumentRepository(prisma).getById(first.documentId);
     expect(detail?.tags).toEqual(['test']);
     expect(detail?.currentVersion?.versionNo).toBe(2);
-    expect(detail?.currentVersion?.normalizedText).toBe('version two');
+    expect(detail?.currentVersion?.normalizedText).toBe(`version two ${runId}`);
 
     const versions = await prisma.documentVersion.findMany({
       where: { documentId: first.documentId },
       orderBy: { versionNo: 'asc' },
     });
     expect(versions.map((item) => item.isCurrent)).toEqual([false, true]);
-    expect(versions[1]?.charCount).toBe('version two'.length);
+    expect(versions[1]?.charCount).toBe(`version two ${runId}`.length);
   });
 
   it('同一内容以不同来源导入时归并到同一文档', async () => {
@@ -176,8 +177,8 @@ describe.skipIf(!enabled)('DocumentService', () => {
   it('ingests a URL, dedupes content, and appends versions by URL', async () => {
     const url = `https://example.com/notes/${randomUUID()}`;
     const copyUrl = `https://example.com/copy/${randomUUID()}`;
-    const alpha = Buffer.from('<html><body>alpha</body></html>');
-    const beta = Buffer.from('<html><body>beta</body></html>');
+    const alpha = Buffer.from(`<html><body>alpha ${runId}</body></html>`);
+    const beta = Buffer.from(`<html><body>beta ${runId}</body></html>`);
 
     const first = await service.ingestUrl({
       url,

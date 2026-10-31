@@ -1,5 +1,7 @@
 export * from './bigram.js';
+export * from './citation.js';
 export * from './constants.js';
+export * from './conversations.js';
 export * from './documents.js';
 export * from './env.js';
 export * from './errors.js';

@@ -1,11 +1,14 @@
 import { Redis } from 'ioredis';
 import {
+  ChunkRepository,
+  ConversationRepository,
   createPrismaClient,
   DocumentRepository,
   JobRepository,
   type PrismaClient,
 } from '@kos/database';
 import { collectionName, createEmbeddingProvider } from '@kos/embeddings';
+import { createChatProvider } from '@kos/llm';
 import { cancelIngest, createIngestQueue, enqueueIngest, retryIngest } from '@kos/queue';
 import { QdrantStore, RetrievalService } from '@kos/retrieval';
 import type { Env } from '@kos/shared';
@@ -13,6 +16,7 @@ import { LocalStorageAdapter, type StorageAdapter } from '@kos/storage';
 import { DocumentService, type IngestEnqueuer } from './modules/documents/document-service.js';
 import { createUrlFetcher, type UrlFetcher } from './modules/documents/url-fetcher.js';
 import { JobService } from './modules/jobs/job-service.js';
+import { ConversationService } from './modules/conversations/conversation-service.js';
 
 export interface Pingable {
   ping(): Promise<void>;
@@ -33,6 +37,7 @@ export interface AppDeps {
   documents: DocumentService;
   jobs: JobService;
   retrieval: RetrievalService;
+  conversations: ConversationService;
   urlFetcher: UrlFetcher;
 }
 
@@ -68,6 +73,13 @@ export function createDeps(env: Env): AppDeps {
     embeddings: createEmbeddingProvider(env),
     qdrant: qdrantStore,
   });
+  const conversations = new ConversationService(
+    prisma,
+    new ConversationRepository(prisma),
+    new ChunkRepository(prisma),
+    retrieval,
+    createChatProvider(env),
+  );
   const urlFetcher = createUrlFetcher();
 
   const redis = new Redis(env.REDIS_URL, {
@@ -88,6 +100,7 @@ export function createDeps(env: Env): AppDeps {
     documents,
     jobs,
     retrieval,
+    conversations,
     urlFetcher,
     db: {
       async ping() {

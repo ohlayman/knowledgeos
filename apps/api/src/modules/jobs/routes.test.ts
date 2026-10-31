@@ -25,6 +25,7 @@ function fakeDeps(): AppDeps {
     storage: {} as AppDeps['storage'],
     queue: { close: vi.fn() },
     documents: {} as AppDeps['documents'],
+    conversations: {} as AppDeps['conversations'],
     retrieval: {} as AppDeps['retrieval'],
     jobs: {
       list: vi.fn(),

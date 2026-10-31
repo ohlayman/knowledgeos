@@ -17,6 +17,7 @@
     "@fastify/multipart": "^10.1.6",
     "@kos/database": "workspace:*",
     "@kos/embeddings": "workspace:^",
+    "@kos/llm": "workspace:^",
     "@kos/parser": "workspace:^",
     "@kos/queue": "workspace:^",
     "@kos/retrieval": "workspace:^",

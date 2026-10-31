@@ -64,6 +64,10 @@ export class ConversationRepository {
     });
   }
 
+  async updateTitle(id: string, title: string): Promise<void> {
+    await this.prisma.conversation.update({ where: { id }, data: { title } });
+  }
+
   async softDelete(id: string): Promise<void> {
     await this.prisma.conversation.update({
       where: { id },
@@ -108,6 +112,21 @@ export class ConversationRepository {
         messageId,
         ...input,
       },
+    });
+  }
+
+  async addFeedback(input: {
+    messageId: string;
+    type: 'helpful' | 'not_helpful' | 'citation_wrong';
+    citationOrdinal?: number;
+    comment?: string;
+    snapshot?: Prisma.InputJsonValue;
+  }) {
+    const { messageId, ...rest } = input;
+    return this.prisma.messageFeedback.upsert({
+      where: { messageId },
+      update: rest,
+      create: { id: randomUUID(), messageId, ...rest },
     });
   }
 

@@ -47,6 +47,9 @@ importers:
       '@kos/embeddings':
         specifier: workspace:^
         version: link:../../packages/embeddings
+      '@kos/llm':
+        specifier: workspace:^
+        version: link:../../packages/llm
       '@kos/parser':
         specifier: workspace:^
         version: link:../../packages/parser
@@ -194,6 +197,19 @@ importers:
       tsx:
         specifier: ^4.23.15
         version: 4.23.15
+      vitest:
+        specifier: ^2.1.9
+        version: 2.1.9(@types/node@22.10.0)
+
+  packages/llm:
+    dependencies:
+      '@kos/shared':
+        specifier: workspace:*
+        version: link:../shared
+      js-tiktoken:
+        specifier: ^1.0.16
+        version: 1.0.16
+    devDependencies:
       vitest:
         specifier: ^2.1.9
         version: 2.1.9(@types/node@22.10.0)

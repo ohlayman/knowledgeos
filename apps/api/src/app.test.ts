@@ -36,6 +36,7 @@ function fakeDeps(): AppDeps {
       ingestText: vi.fn(),
       ingestUrl: vi.fn(),
     } as unknown as AppDeps['documents'],
+    conversations: {} as AppDeps['conversations'],
     retrieval: {} as AppDeps['retrieval'],
     jobs: {} as AppDeps['jobs'],
     urlFetcher: { fetch: vi.fn() } as unknown as AppDeps['urlFetcher'],

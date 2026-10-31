@@ -10,6 +10,7 @@ export default defineConfig({
       '@kos/database': fileURLToPath(
         new URL('../../packages/database/src/index.ts', import.meta.url),
       ),
+      '@kos/llm': fileURLToPath(new URL('../../packages/llm/src/index.ts', import.meta.url)),
       '@kos/parser': fileURLToPath(new URL('../../packages/parser/src/index.ts', import.meta.url)),
       '@kos/retrieval': fileURLToPath(
         new URL('../../packages/retrieval/src/index.ts', import.meta.url),
