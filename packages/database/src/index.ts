@@ -2,6 +2,7 @@ import { PrismaClient } from '@prisma/client';
 
 export { PrismaClient } from '@prisma/client';
 export type { Prisma } from '@prisma/client';
+export * from './repositories/index.js';
 
 export function createPrismaClient(databaseUrl?: string): PrismaClient {
   if (!databaseUrl) {

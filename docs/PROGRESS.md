@@ -7,9 +7,9 @@
 
 ## 1. 当前结论
 
-- **当前阶段：** M1 数据层进行中：Schema、迁移、种子、Qdrant 客户端与 A-2 压测已完成；仓储层待做。
+- **当前阶段：** M1 数据层完成，7/7 任务通过；准备进入 M2-T1。
 - **当前版本：** V1。
-- **下一步：** 实现仓储层（documents / versions / chunks / jobs），完成 M1-T3。
+- **下一步：** 实现 StorageAdapter 与哈希工具，开始导入与解析。
 - **环境说明：** 本机原生 PostgreSQL 占用 5432，compose 的 Postgres 映射到宿主 5433；`.env.example` 已同步。
 - **阻塞：** 无。
 
@@ -55,7 +55,7 @@
 | --- | --- | --- | --- | --- |
 | M1-T1 Prisma Schema + 初始迁移 | DONE | 2026-11-01 | 2026-11-01 | `20261031164344_init` 已应用；36 张表（含 `_prisma_migrations`） |
 | M1-T2 原始 SQL 迁移（搜索/部分唯一/触发器） | DONE | 2026-11-01 | 2026-11-01 | `20261031164359_search_and_constraints` 已应用；8 个索引、生成列、触发器、2 个 CHECK 均验证 |
-| M1-T3 仓储层 | TODO | — | — | — |
+| M1-T3 仓储层 | DONE | 2026-11-01 | 2026-11-01 | documents / chunks / jobs / conversations 四类仓储；集成测试 5/5 通过 |
 | M1-T4 种子数据 | DONE | 2026-11-01 | 2026-11-01 | `pnpm --filter @kos/database seed` 两次执行后 1 用户 / 13 设置 |
 | M1-T5 Qdrant 客户端封装 | DONE | 2026-11-01 | 2026-11-01 | `@kos/retrieval` 集成测试通过：建集合、索引、upsert、过滤检索、按版本删除 |
 | M1-T6 A-2 十万块压测 | DONE | 2026-11-01 | 2026-11-01 | 10 万点/1536 维/3 条件/Top-20：P50 88.2ms、P95 92.6ms、P99 99.6ms |
@@ -176,7 +176,8 @@
 | 非 LLM 接口 P95 | TODO | — | ≤ 300ms |
 | 引用可解析率 | TODO | — | 100% |
 | 单测 | DONE | 11/11 通过（shared 6 + api 5） | 全绿 |
-| 集成/E2E | TODO | — | 全绿 |
+| 集成 | DONE | 6/6 通过（数据库仓储 5 + Qdrant 1） | 全绿 |
+| E2E | TODO | — | 全绿 |
 
 ---
 
@@ -189,3 +190,4 @@
 | 2026-11-01 | M0 完成：真实 readiness 200；修复 x-request-id、根 .env 加载；Postgres 宿主端口改 5433；CI 首次运行通过 |
 | 2026-11-01 | M1-T1/T2/T4 完成：Prisma Schema、两份迁移、种子数据；生成列与触发器已做真实写入/回滚验证 |
 | 2026-11-01 | M1-T5/T6/T7 完成：Qdrant 客户端与集成测试通过；A-2 压测 P95 92.6ms，保留 Qdrant |
+| 2026-11-01 | M1-T3 完成：四类仓储与 5 条集成测试；补 `documents.tags` 字段与 GIN 索引迁移 |

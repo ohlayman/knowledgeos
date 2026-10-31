@@ -324,6 +324,7 @@ model Document {
   id               String    @id @db.Uuid
   ownerId          String?   @map("owner_id") @db.Uuid
   title            String    @db.Text
+  tags             String[]  @default([])
   currentVersionId String?   @unique @map("current_version_id") @db.Uuid
   isDeleted        Boolean   @default(false) @map("is_deleted")
   deletedAt        DateTime? @map("deleted_at") @db.Timestamptz(3)

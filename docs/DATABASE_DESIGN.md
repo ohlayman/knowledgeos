@@ -437,6 +437,7 @@ model Document {
   id               String    @id @db.Uuid
   ownerId          String?   @map("owner_id") @db.Uuid
   title            String    @db.Text
+  tags             String[]  @default([])
   currentVersionId String?   @unique @map("current_version_id") @db.Uuid
   isDeleted        Boolean   @default(false) @map("is_deleted")
   deletedAt        DateTime? @map("deleted_at") @db.Timestamptz(3)
@@ -1062,6 +1063,7 @@ model McpAuditLog {
 | `current_version_id` | 当前有效版本；由应用在版本切换事务中维护 |
 | `is_deleted` / `deleted_at` | 逻辑删除；物理清理在 30 天后 |
 | `title` | 可重复，判重不依赖标题 |
+| `tags` | 文档标签，GIN 索引；检索范围过滤与列表筛选用 |
 
 **文档状态不单独存字段。** 列表与 Dashboard 通过 `current_version.status` 派生，避免两处状态不一致。
 
