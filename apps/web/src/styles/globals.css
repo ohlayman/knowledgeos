@@ -839,3 +839,18 @@ a.metric:hover {
     padding: 20px 16px 80px;
   }
 }
+
+/* graph 3d */
+.graph-3d {
+  position: relative;
+  width: 100%;
+  min-height: 620px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-o);
+  overflow: hidden;
+  background: var(--paper-1);
+}
+
+.graph-3d canvas {
+  display: block;
+}
