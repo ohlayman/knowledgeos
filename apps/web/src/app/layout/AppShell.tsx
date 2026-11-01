@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { useWikiReviewTasks } from '../../features/hooks.js';
 import { useTheme, type ThemeMode } from '../../lib/theme.js';
 
 interface NavItem {
@@ -36,6 +37,7 @@ const NAV: NavItem[] = [
   },
   { to: '/library', label: '知识库', icon: <Icon path="M4 5h16v4H4zM4 12h16v7H4z" /> },
   { to: '/research', label: '问答', icon: <Icon path="M4 5h16v11H8l-4 4z" /> },
+  { to: '/wiki', label: 'Wiki', icon: <Icon path="M4 4h16v16H4zM4 9h16M9 9v11" /> },
   { to: '/jobs', label: '任务', icon: <Icon path="M5 7h14M5 12h14M5 17h9" /> },
   {
     to: '/settings',
@@ -53,6 +55,8 @@ const THEME_LABELS: Record<ThemeMode, string> = {
 export function AppShell() {
   const navigate = useNavigate();
   const { mode, cycleMode } = useTheme();
+  const reviewTasks = useWikiReviewTasks('open');
+  const pendingReviews = reviewTasks.data?.length ?? 0;
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [query, setQuery] = useState('');
 
@@ -94,8 +98,27 @@ export function AppShell() {
             end={item.end}
             className="navbtn"
             aria-label={item.label}
+            style={{ position: 'relative' }}
           >
             {item.icon}
+            {item.to === '/wiki' && pendingReviews > 0 ? (
+              <span
+                aria-label={`${pendingReviews} 条待审核`}
+                style={{
+                  position: 'absolute',
+                  top: 4,
+                  right: 4,
+                  background: 'var(--danger)',
+                  color: '#fff',
+                  fontSize: 10,
+                  lineHeight: '14px',
+                  borderRadius: 7,
+                  padding: '0 4px',
+                }}
+              >
+                {pendingReviews > 20 ? '20+' : pendingReviews}
+              </span>
+            ) : null}
             <span className="tip">{item.label}</span>
           </NavLink>
         ))}

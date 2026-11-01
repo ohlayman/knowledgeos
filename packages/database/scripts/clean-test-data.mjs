@@ -46,6 +46,10 @@ const titlePatterns = [
   /^dbg-/,
   /^e2e 笔记/i,
   /^AC[- ]/i,
+  /^AC15/,
+  /^DBG/,
+  /^冲突[A-D] /,
+  /^V15 /,
   /^bench-/,
   /^index-fail-/,
   /^reimport-/,
@@ -84,6 +88,10 @@ const prefixes = [
   'maintenance-',
   'e2e ',
   'AC-',
+  'AC15',
+  'dbg',
+  '冲突',
+  'v15 ',
   'bench-',
   'index-fail-',
   'reimport-',
@@ -112,7 +120,66 @@ if (staleConversations.length > 0) {
   });
 }
 
+const wikiPages = await prisma.wikiPage.findMany({
+  where: {
+    OR: [{ title: { startsWith: 'AC' } }, { title: { startsWith: 'E2E Wiki' } }],
+  },
+  select: { id: true },
+});
+if (wikiPages.length > 0) {
+  const pageIds = wikiPages.map((page) => page.id);
+  await prisma.wikiProposal.deleteMany({ where: { targetPageId: { in: pageIds } } });
+  await prisma.reviewTask.deleteMany({ where: { targetId: { in: pageIds } } });
+  await prisma.wikiPage.deleteMany({ where: { id: { in: pageIds } } });
+}
+const createProposals = await prisma.wikiProposal.findMany({
+  where: { patch: { path: ['newPage', 'title'], string_starts_with: 'AC15' } },
+  select: { id: true },
+});
+if (createProposals.length > 0) {
+  const ids = createProposals.map((proposal) => proposal.id);
+  await prisma.reviewTask.deleteMany({ where: { proposalId: { in: ids } } });
+  await prisma.wikiProposal.deleteMany({ where: { id: { in: ids } } });
+}
+
+const remainingChunks = await prisma.chunk.findMany({ select: { id: true } });
+const chunkIds = new Set(remainingChunks.map((chunk) => chunk.id));
+const allEntities = await prisma.entity.findMany({
+  select: { id: true, sourceChunkIds: true },
+});
+const staleEntities = allEntities.filter(
+  (entity) =>
+    entity.sourceChunkIds.length === 0 ||
+    entity.sourceChunkIds.every((chunkId) => !chunkIds.has(chunkId)),
+);
+if (staleEntities.length > 0) {
+  await prisma.entity.deleteMany({ where: { id: { in: staleEntities.map((item) => item.id) } } });
+}
+
+const remainingPages = await prisma.wikiPage.findMany({
+  select: { id: true, revisions: { select: { evidenceChunkIds: true } } },
+});
+const stalePages = remainingPages.filter((page) => {
+  const evidence = page.revisions.flatMap((revision) => revision.evidenceChunkIds);
+  return evidence.length > 0 && evidence.every((chunkId) => !chunkIds.has(chunkId));
+});
+if (stalePages.length > 0) {
+  const ids = stalePages.map((page) => page.id);
+  await prisma.reviewTask.deleteMany({ where: { targetId: { in: ids } } });
+  await prisma.wikiPage.deleteMany({ where: { id: { in: ids } } });
+}
+
+const orphanProposals = await prisma.wikiProposal.findMany({
+  where: { status: 'pending', documentVersionId: null, modelMeta: { not: null } },
+  select: { id: true },
+});
+if (orphanProposals.length > 0) {
+  const ids = orphanProposals.map((proposal) => proposal.id);
+  await prisma.reviewTask.deleteMany({ where: { proposalId: { in: ids } } });
+  await prisma.wikiProposal.deleteMany({ where: { id: { in: ids } } });
+}
+
 console.log(
-  `清理完成：${stale.length} 份测试文档、${sources.count} 条来源、${staleConversations.length} 个测试会话`,
+  `清理完成：${stale.length} 份测试文档、${sources.count} 条来源、${staleConversations.length} 个测试会话、${wikiPages.length} 个 Wiki 页面、${orphanProposals.length} 条孤儿提案`,
 );
 await prisma.$disconnect();

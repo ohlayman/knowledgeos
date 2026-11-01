@@ -1,6 +1,8 @@
 import { Queue, Worker, type Job, type RedisOptions } from 'bullmq';
 
 export const INGEST_QUEUE = 'kos-ingest';
+export const EXTRACT_QUEUE = 'kos-extract';
+export const WIKI_COMPILE_QUEUE = 'kos-wiki-compile';
 
 export interface IngestJobData {
   jobId: string;
@@ -71,5 +73,35 @@ export async function enqueueIngest(
     removeOnFail: 500,
   });
 
+  return job.id ?? data.jobId;
+}
+
+export function createDocumentQueue(redisUrl: string, name: string): Queue<IngestJobData> {
+  return new Queue<IngestJobData>(name, { connection: redisConnectionOptions(redisUrl) });
+}
+
+export function createDocumentWorker(
+  redisUrl: string,
+  name: string,
+  processor: IngestProcessor,
+  options: { concurrency?: number } = {},
+): Worker<IngestJobData> {
+  return new Worker<IngestJobData>(name, processor, {
+    connection: redisConnectionOptions(redisUrl),
+    concurrency: options.concurrency ?? 1,
+  });
+}
+
+export async function enqueueDocument(
+  queue: Queue<IngestJobData>,
+  name: string,
+  data: IngestJobData,
+): Promise<string> {
+  const job = await queue.add(name, data, {
+    jobId: data.jobId,
+    attempts: 1,
+    removeOnComplete: 100,
+    removeOnFail: 500,
+  });
   return job.id ?? data.jobId;
 }

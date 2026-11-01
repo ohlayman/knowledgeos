@@ -11,6 +11,14 @@ import {
   MessageSchema,
   MetricsSchema,
   SettingsSchema,
+  WikiConflictListSchema,
+  WikiDiffSchema,
+  WikiEntityListSchema,
+  WikiPageDetailSchema,
+  WikiPageListSchema,
+  WikiProposalListSchema,
+  WikiProposalSchema,
+  WikiReviewTaskListSchema,
 } from './schemas.js';
 
 function visibleInterval(ms: number) {
@@ -323,5 +331,220 @@ export function useTestConnection() {
         '/settings/test-connection',
         { method: 'POST', body: JSON.stringify(input) },
       ),
+  });
+}
+
+export function useWikiPages(filters: { type?: string; status?: string } = {}) {
+  const search = new URLSearchParams();
+  for (const [key, value] of Object.entries(filters)) {
+    if (value) {
+      search.set(key, value);
+    }
+  }
+  return useQuery({
+    queryKey: ['wiki-pages', filters],
+    queryFn: async () =>
+      WikiPageListSchema.parse(await apiFetch(`/wiki/pages?${search.toString()}`)),
+  });
+}
+
+export function useWikiPage(slug: string | undefined) {
+  return useQuery({
+    queryKey: ['wiki-page', slug],
+    enabled: Boolean(slug),
+    queryFn: async () =>
+      WikiPageDetailSchema.parse(await apiFetch(`/wiki/pages/${encodeURIComponent(slug!)}`)),
+  });
+}
+
+export function useWikiProposals(status?: string) {
+  return useQuery({
+    queryKey: ['wiki-proposals', status],
+    queryFn: async () =>
+      WikiProposalListSchema.parse(
+        await apiFetch(`/wiki/proposals${status ? `?status=${status}` : ''}`),
+      ),
+  });
+}
+
+export function useWikiProposal(id: string | undefined) {
+  return useQuery({
+    queryKey: ['wiki-proposal', id],
+    enabled: Boolean(id),
+    queryFn: async () => WikiProposalSchema.parse(await apiFetch(`/wiki/proposals/${id}`)),
+  });
+}
+
+export function useWikiConflicts() {
+  return useQuery({
+    queryKey: ['wiki-conflicts'],
+    queryFn: async () => WikiConflictListSchema.parse(await apiFetch('/wiki/conflicts')),
+  });
+}
+
+export function useWikiReviewTasks(status = 'open') {
+  return useQuery({
+    queryKey: ['wiki-tasks', status],
+    queryFn: async () =>
+      WikiReviewTaskListSchema.parse(await apiFetch(`/wiki/review-tasks?status=${status}`)),
+  });
+}
+
+export function useWikiEntities(query?: string) {
+  return useQuery({
+    queryKey: ['wiki-entities', query],
+    queryFn: async () =>
+      WikiEntityListSchema.parse(
+        await apiFetch(`/entities${query ? `?q=${encodeURIComponent(query)}` : ''}`),
+      ),
+  });
+}
+
+export function useWikiDiff(slug: string | undefined, from?: string, to?: string) {
+  return useQuery({
+    queryKey: ['wiki-diff', slug, from, to],
+    enabled: Boolean(slug && from && to),
+    queryFn: async () =>
+      WikiDiffSchema.parse(
+        await apiFetch(`/wiki/pages/${encodeURIComponent(slug!)}/diff?from=${from}&to=${to}`),
+      ),
+  });
+}
+
+export function useCreateWikiPage() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { title: string; type: string; slug?: string; summary?: string }) =>
+      apiFetch('/wiki/pages', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(input),
+      }),
+    onSuccess: () => client.invalidateQueries({ queryKey: ['wiki-pages'] }),
+  });
+}
+
+export function useSaveWikiRevision(slug: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: {
+      content: unknown;
+      baseRevisionId: string;
+      changeSummary?: string;
+    }) =>
+      apiFetch(`/wiki/pages/${encodeURIComponent(slug)}/revisions`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(input),
+      }),
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: ['wiki-page', slug] });
+    },
+  });
+}
+
+export function useRollbackWikiPage(slug: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { targetRevisionId: string; reason: string }) =>
+      apiFetch(`/wiki/pages/${encodeURIComponent(slug)}/rollback`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(input),
+      }),
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: ['wiki-page', slug] });
+    },
+  });
+}
+
+export function useAcceptProposal() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { id: string; baseRevisionId?: string }) =>
+      apiFetch(`/wiki/proposals/${input.id}/accept`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(input.baseRevisionId ? { baseRevisionId: input.baseRevisionId } : {}),
+      }),
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: ['wiki-proposals'] });
+      void client.invalidateQueries({ queryKey: ['wiki-pages'] });
+    },
+  });
+}
+
+export function useRejectProposal() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { id: string; reason: string; comment?: string }) =>
+      apiFetch(`/wiki/proposals/${input.id}/reject`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ reason: input.reason, comment: input.comment }),
+      }),
+    onSuccess: () => client.invalidateQueries({ queryKey: ['wiki-proposals'] }),
+  });
+}
+
+export function useRewriteProposal() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: {
+      id: string;
+      content: unknown;
+      baseRevisionId: string;
+      summary?: string;
+    }) =>
+      apiFetch(`/wiki/proposals/${input.id}/rewrite`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(input),
+      }),
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: ['wiki-proposals'] });
+      void client.invalidateQueries({ queryKey: ['wiki-pages'] });
+    },
+  });
+}
+
+export function useResolveConflict() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { id: string; resolution: string; reason?: string }) =>
+      apiFetch(`/wiki/conflicts/${input.id}/resolve`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ resolution: input.resolution, reason: input.reason }),
+      }),
+    onSuccess: () => client.invalidateQueries({ queryKey: ['wiki-conflicts'] }),
+  });
+}
+
+export function useResolveStale(slug: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (action: 'confirm' | 'archive') =>
+      apiFetch(`/wiki/pages/${encodeURIComponent(slug)}/stale`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ action }),
+      }),
+    onSuccess: () => client.invalidateQueries({ queryKey: ['wiki-page', slug] }),
+  });
+}
+
+export function useTriggerExtraction() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (documentId: string) =>
+      apiFetch('/wiki/extract', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ documentId }),
+      }),
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: ['wiki-proposals'] });
+    },
   });
 }

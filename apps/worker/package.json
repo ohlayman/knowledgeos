@@ -16,11 +16,14 @@
     "@kos/chunking": "workspace:*",
     "@kos/database": "workspace:*",
     "@kos/embeddings": "workspace:*",
+    "@kos/extraction": "workspace:*",
+    "@kos/llm": "workspace:*",
     "@kos/parser": "workspace:*",
     "@kos/queue": "workspace:*",
     "@kos/retrieval": "workspace:*",
     "@kos/shared": "workspace:*",
     "@kos/storage": "workspace:*",
+    "@kos/wiki-engine": "workspace:*",
     "dotenv": "^16.4.7"
   },
   "devDependencies": {

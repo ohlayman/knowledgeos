@@ -28,7 +28,8 @@
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",
-    "@kos/shared": "workspace:*"
+    "@kos/shared": "workspace:*",
+    "@kos/wiki-engine": "workspace:*"
   },
   "devDependencies": {
     "prisma": "^6.19.3",

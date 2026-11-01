@@ -216,3 +216,135 @@ export type Citation = z.infer<typeof CitationSchema>;
 export type ConversationSummary = z.infer<typeof ConversationSummarySchema>;
 export type ConversationDetail = z.infer<typeof ConversationDetailSchema>;
 export type Settings = z.infer<typeof SettingsSchema>;
+
+export const WikiRevisionSchema = z.object({
+  id: z.string(),
+  revisionNo: z.number(),
+  editorType: z.string(),
+  changeSummary: z.string().nullable(),
+  content: z.unknown(),
+  evidenceChunkIds: z.array(z.string()).default([]),
+  createdAt: z.string(),
+  proposalId: z.string().nullable().optional(),
+});
+
+export const WikiPageSummarySchema = z.object({
+  id: z.string(),
+  slug: z.string(),
+  title: z.string(),
+  type: z.string(),
+  status: z.string(),
+  summary: z.string().nullable(),
+  aliases: z.array(z.string()).default([]),
+  currentRevisionId: z.string().nullable(),
+  updatedAt: z.string(),
+  currentRevision: WikiRevisionSchema.nullable().optional(),
+});
+
+export const WikiLinkSchema = z.object({
+  id: z.string(),
+  targetSlug: z.string(),
+  relationType: z.string().nullable(),
+  context: z.string().nullable(),
+  toPage: WikiPageSummarySchema.nullable().optional(),
+});
+
+export const WikiBacklinkSchema = z.object({
+  id: z.string(),
+  context: z.string().nullable(),
+  fromPage: WikiPageSummarySchema,
+});
+
+export const WikiEvidenceSchema = z.object({
+  id: z.string(),
+  documentId: z.string(),
+  text: z.string(),
+});
+
+export const WikiPageDetailSchema = WikiPageSummarySchema.extend({
+  revisions: z.array(WikiRevisionSchema),
+  outgoingLinks: z.array(WikiLinkSchema).default([]),
+  backlinks: z.array(WikiBacklinkSchema).default([]),
+  unresolvedConflicts: z.number().default(0),
+  evidence: z.array(WikiEvidenceSchema).default([]),
+});
+
+export const WikiPageListSchema = z.array(WikiPageSummarySchema);
+
+export const WikiProposalSchema = z.object({
+  id: z.string(),
+  targetPageId: z.string().nullable(),
+  changeType: z.string(),
+  baseRevisionId: z.string().nullable(),
+  patch: z.unknown(),
+  evidence: z.unknown(),
+  conflicts: z.unknown(),
+  validation: z.unknown(),
+  status: z.string(),
+  rejectReason: z.string().nullable(),
+  rejectComment: z.string().nullable(),
+  createdAt: z.string(),
+  expiresAt: z.string().nullable(),
+  targetPage: WikiPageSummarySchema.nullable().optional(),
+  evidenceChunks: z.array(WikiEvidenceSchema).default([]),
+});
+
+export const WikiProposalListSchema = z.array(WikiProposalSchema);
+
+export const WikiConflictSchema = z.object({
+  id: z.string(),
+  proposalId: z.string(),
+  pageId: z.string().nullable(),
+  pageTitle: z.string().nullable(),
+  type: z.string(),
+  subject: z.string().optional(),
+  predicate: z.string().optional(),
+  detail: z.string().optional(),
+  a: z.object({ value: z.string(), evidenceChunkId: z.string() }).optional(),
+  b: z.object({ value: z.string(), evidenceChunkId: z.string() }).optional(),
+  resolution: z.string().optional(),
+});
+
+export const WikiConflictListSchema = z.array(WikiConflictSchema);
+
+export const WikiReviewTaskSchema = z.object({
+  id: z.string(),
+  type: z.string(),
+  targetId: z.string(),
+  priority: z.number(),
+  status: z.string(),
+  proposalId: z.string().nullable(),
+  createdAt: z.string(),
+});
+
+export const WikiReviewTaskListSchema = z.array(WikiReviewTaskSchema);
+
+export const WikiEntitySchema = z.object({
+  id: z.string(),
+  canonicalName: z.string(),
+  normalizedName: z.string(),
+  type: z.string(),
+  aliases: z.array(z.string()).default([]),
+  mentionCount: z.number(),
+  confidence: z.number(),
+  status: z.string(),
+});
+
+export const WikiEntityListSchema = z.array(WikiEntitySchema);
+
+export const WikiDiffSchema = z.object({
+  from: z.object({ id: z.string(), revisionNo: z.number() }),
+  to: z.object({ id: z.string(), revisionNo: z.number() }),
+  added: z.array(z.unknown()),
+  removed: z.array(z.unknown()),
+  changed: z.array(z.unknown()),
+});
+
+export type WikiRevision = z.infer<typeof WikiRevisionSchema>;
+export type WikiPageSummary = z.infer<typeof WikiPageSummarySchema>;
+export type WikiPageDetail = z.infer<typeof WikiPageDetailSchema>;
+export type WikiProposal = z.infer<typeof WikiProposalSchema>;
+export type WikiConflict = z.infer<typeof WikiConflictSchema>;
+export type WikiReviewTask = z.infer<typeof WikiReviewTaskSchema>;
+export type WikiEntity = z.infer<typeof WikiEntitySchema>;
+export type WikiDiff = z.infer<typeof WikiDiffSchema>;

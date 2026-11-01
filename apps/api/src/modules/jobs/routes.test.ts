@@ -38,6 +38,7 @@ function fakeDeps(): AppDeps {
     chunks: {} as AppDeps['chunks'],
     maintenance: {} as AppDeps['maintenance'],
     urlFetcher: { fetch: vi.fn() },
+    wiki: {} as AppDeps['wiki'],
   } as AppDeps;
 }
 

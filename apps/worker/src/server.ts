@@ -4,15 +4,31 @@ import {
   ChunkRepository,
   createPrismaClient,
   DocumentRepository,
+  ExtractionRepository,
   JobRepository,
   loadProviderSettings,
+  WikiRepository,
 } from '@kos/database';
-import { createIngestQueue, createIngestWorker, enqueueIngest } from '@kos/queue';
+import {
+  createDocumentQueue,
+  createDocumentWorker,
+  createIngestQueue,
+  createIngestWorker,
+  enqueueDocument,
+  enqueueIngest,
+  EXTRACT_QUEUE,
+  WIKI_COMPILE_QUEUE,
+} from '@kos/queue';
 import { collectionName, createEmbeddingProvider } from '@kos/embeddings';
+import { FakeExtractionModel, type ExtractionModel } from '@kos/extraction';
+import { createChatProvider } from '@kos/llm';
 import { QdrantStore } from '@kos/retrieval';
 import { loadEnv } from '@kos/shared';
 import { LocalStorageAdapter, resolveDataDir } from '@kos/storage';
+import { FakeCompileModel, type CompileModel } from '@kos/wiki-engine';
 import { runPipeline } from './pipeline.js';
+import { runExtraction } from './extraction.js';
+import { runWikiCompile } from './wiki.js';
 import { reconcileOnce, type ReconcileQueue } from './reconcile.js';
 import { runRetention } from './retention.js';
 
@@ -41,26 +57,110 @@ const qdrant = new QdrantStore({
   vectorSize: embeddingDim,
 });
 
+const documents = new DocumentRepository(prisma);
+const chunks = new ChunkRepository(prisma);
+const wiki = new WikiRepository(prisma);
+const extractionRepository = new ExtractionRepository(prisma);
+const embeddings = createEmbeddingProvider(env, storedEmbedding);
+
 const deps = {
   prisma,
-  documents: new DocumentRepository(prisma),
-  chunks: new ChunkRepository(prisma),
+  documents,
+  chunks,
   jobs: new JobRepository(prisma),
   storage: new LocalStorageAdapter(resolveDataDir(env.DATA_DIR, import.meta.url)),
-  embeddings: createEmbeddingProvider(env, storedEmbedding),
+  embeddings,
   qdrant,
 };
+
+const storedChat = await loadProviderSettings(prisma, env.APP_ENCRYPTION_KEY, 'llm');
+const chat = createChatProvider(env, storedChat);
+const usingFakeChat = chat.model === 'fake-chat';
+
+const extractionModel: ExtractionModel = usingFakeChat
+  ? new FakeExtractionModel()
+  : {
+      model: chat.model,
+      complete: async (messages) => ({ text: (await chat.complete(messages)).text }),
+    };
+const compileModel: CompileModel = usingFakeChat
+  ? new FakeCompileModel()
+  : {
+      model: chat.model,
+      complete: async (messages) => ({ text: (await chat.complete(messages)).text }),
+    };
+
+const extractQueue = createDocumentQueue(env.REDIS_URL, EXTRACT_QUEUE);
+const wikiQueue = createDocumentQueue(env.REDIS_URL, WIKI_COMPILE_QUEUE);
 
 const worker = createIngestWorker(
   env.REDIS_URL,
   async (job) => {
     await runPipeline(deps, job.data.jobId);
+    const version = await documents.getVersionById(job.data.versionId);
+    if (version?.status !== 'ready') {
+      return;
+    }
+    await wiki.markPagesStaleForDocument(job.data.documentId, job.data.versionId);
+    await enqueueDocument(extractQueue, 'extract', {
+      jobId: `extract-${job.data.versionId}`,
+      documentId: job.data.documentId,
+      versionId: job.data.versionId,
+    });
   },
   { concurrency: await loadConcurrency() },
 );
 
 worker.on('failed', (job, error) => {
   console.error('ingest job failed', job?.id, error);
+});
+
+const extractWorker = createDocumentWorker(
+  env.REDIS_URL,
+  EXTRACT_QUEUE,
+  async (job) => {
+    const budget = await prisma.appSetting.findUnique({
+      where: { key: 'extraction.tokenBudget' },
+    });
+    const summary = await runExtraction(
+      {
+        prisma,
+        chunks,
+        extraction: extractionRepository,
+        model: extractionModel,
+        ...(typeof budget?.value === 'number' ? { tokenBudget: budget.value } : {}),
+      },
+      { versionId: job.data.versionId },
+    );
+    console.log('extraction result', summary);
+    await enqueueDocument(wikiQueue, 'wiki_compile', {
+      jobId: `wiki-${job.data.versionId}`,
+      documentId: job.data.documentId,
+      versionId: job.data.versionId,
+    });
+  },
+  { concurrency: 1 },
+);
+
+extractWorker.on('failed', (job, error) => {
+  console.error('extract job failed', job?.id, error);
+});
+
+const wikiWorker = createDocumentWorker(
+  env.REDIS_URL,
+  WIKI_COMPILE_QUEUE,
+  async (job) => {
+    const summary = await runWikiCompile(
+      { prisma, chunks, wiki, embeddings, model: compileModel },
+      { versionId: job.data.versionId },
+    );
+    console.log('wiki compile result', summary);
+  },
+  { concurrency: 1 },
+);
+
+wikiWorker.on('failed', (job, error) => {
+  console.error('wiki compile job failed', job?.id, error);
 });
 
 const ingestQueue = createIngestQueue(env.REDIS_URL);
@@ -114,7 +214,11 @@ async function shutdown(signal: string): Promise<void> {
   clearInterval(reconcileTimer);
   clearInterval(retentionTimer);
   await worker.close();
+  await extractWorker.close();
+  await wikiWorker.close();
   await ingestQueue.close();
+  await extractQueue.close();
+  await wikiQueue.close();
   await prisma.$disconnect();
   process.exit(0);
 }

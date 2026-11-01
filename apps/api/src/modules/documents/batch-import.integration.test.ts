@@ -69,6 +69,7 @@ describe.skipIf(!enabled)('POST /api/v1/documents/files batch import', () => {
           throw new Error('unused in batch import test');
         },
       },
+      wiki: {} as AppDeps['wiki'],
     };
 
     app = buildApp(deps);

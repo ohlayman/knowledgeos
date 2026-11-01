@@ -12,6 +12,7 @@ import { maintenanceRoutes } from './modules/maintenance/routes.js';
 import { metricsRoutes } from './modules/metrics/routes.js';
 import { settingsRoutes } from './modules/settings/routes.js';
 import { retrievalRoutes } from './modules/retrieval/routes.js';
+import { wikiRoutes } from './modules/wiki/routes.js';
 import { healthRoutes } from './routes/health.js';
 
 export function buildApp(deps: AppDeps): FastifyInstance {
@@ -48,6 +49,7 @@ export function buildApp(deps: AppDeps): FastifyInstance {
   app.register(metricsRoutes, { deps });
   app.register(chunkRoutes, { deps });
   app.register(maintenanceRoutes, { deps });
+  app.register(wikiRoutes, { deps });
 
   return app;
 }

@@ -6,11 +6,20 @@ import {
   DocumentRepository,
   JobRepository,
   loadProviderSettings,
+  WikiRepository,
   type PrismaClient,
 } from '@kos/database';
 import { collectionName, createEmbeddingProvider } from '@kos/embeddings';
 import { createChatProvider } from '@kos/llm';
-import { cancelIngest, createIngestQueue, enqueueIngest, retryIngest } from '@kos/queue';
+import {
+  cancelIngest,
+  createDocumentQueue,
+  createIngestQueue,
+  enqueueDocument,
+  enqueueIngest,
+  EXTRACT_QUEUE,
+  retryIngest,
+} from '@kos/queue';
 import { QdrantStore, RetrievalService } from '@kos/retrieval';
 import type { Env } from '@kos/shared';
 import { LocalStorageAdapter, resolveDataDir, type StorageAdapter } from '@kos/storage';
@@ -22,6 +31,7 @@ import { ChunkService } from './modules/chunks/chunk-service.js';
 import { MaintenanceService } from './modules/maintenance/maintenance-service.js';
 import { MetricsService } from './modules/metrics/metrics-service.js';
 import { SettingsService } from './modules/settings/settings-service.js';
+import { WikiService } from './modules/wiki/wiki-service.js';
 
 export interface Pingable {
   ping(): Promise<void>;
@@ -48,6 +58,7 @@ export interface AppDeps {
   metrics: MetricsService;
   maintenance: MaintenanceService;
   urlFetcher: UrlFetcher;
+  wiki: WikiService;
 }
 
 export async function createDeps(env: Env): Promise<AppDeps> {
@@ -99,6 +110,14 @@ export async function createDeps(env: Env): Promise<AppDeps> {
   const metrics = new MetricsService(prisma, queue);
   const maintenance = new MaintenanceService(prisma, storage, qdrantStore);
   const urlFetcher = createUrlFetcher();
+  const extractQueue = createDocumentQueue(env.REDIS_URL, EXTRACT_QUEUE);
+  const wiki = new WikiService(prisma, new WikiRepository(prisma), async (input) => {
+    await enqueueDocument(extractQueue, 'extract', {
+      jobId: `extract-${input.versionId}-${Date.now()}`,
+      documentId: input.documentId,
+      versionId: input.versionId,
+    });
+  });
 
   const redis = new Redis(env.REDIS_URL, {
     lazyConnect: true,
@@ -124,11 +143,13 @@ export async function createDeps(env: Env): Promise<AppDeps> {
     metrics,
     maintenance,
     urlFetcher,
+    wiki,
     db: {
       async ping() {
         await prisma.$queryRaw`SELECT 1`;
       },
       async close() {
+        await extractQueue.close();
         await prisma.$disconnect();
       },
     },
