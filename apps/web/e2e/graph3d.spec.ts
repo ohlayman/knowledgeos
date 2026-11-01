@@ -32,3 +32,39 @@ test('mobile defaults to list view', async ({ page }) => {
   );
   await expect(page.getByTestId('graph3d-view')).toHaveCount(0);
 });
+
+test('camera zoom changes position and reset restores it', async ({ page }) => {
+  const webgl = await page.evaluate(() => {
+    const canvas = document.createElement('canvas');
+    return Boolean(canvas.getContext('webgl2') ?? canvas.getContext('webgl'));
+  });
+  test.skip(!webgl, '本机 Playwright 无 WebGL');
+
+  await page.goto('/graph');
+  const view = page.getByTestId('graph3d-view');
+  await expect(view).toBeVisible();
+  const root = page.locator('[data-view-mode]');
+  const canvas = page.locator('.graph-3d canvas');
+  await expect(canvas).toBeVisible();
+  await expect
+    .poll(async () => root.getAttribute('data-camera'), { timeout: 10_000 })
+    .not.toBe('0,0,620');
+  const before = await root.getAttribute('data-camera');
+
+  const box = await canvas.boundingBox();
+  expect(box).not.toBeNull();
+  const startX = box!.x + box!.width / 2;
+  const startY = box!.y + box!.height / 2;
+
+  await page.mouse.move(startX, startY);
+  await page.mouse.wheel(0, -400);
+
+  await expect
+    .poll(async () => root.getAttribute('data-camera'), { timeout: 10_000 })
+    .not.toBe(before);
+
+  await page.getByRole('button', { name: '重置视图' }).click();
+  await expect
+    .poll(async () => root.getAttribute('data-camera'), { timeout: 10_000 })
+    .toBe('0,0,620');
+});

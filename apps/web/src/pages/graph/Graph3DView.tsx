@@ -130,6 +130,10 @@ export const Graph3DView = forwardRef<Graph3DViewHandle, Graph3DViewProps>(
     }, [reportCamera]);
 
     useEffect(() => {
+      graphRef.current?.refresh();
+    }, [selected, hovered]);
+
+    useEffect(() => {
       if (firstFrameAt.current === null) {
         firstFrameAt.current = performance.now();
       }
