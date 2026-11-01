@@ -8,8 +8,9 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from 'react';
 import type { GraphEdge, GraphNode } from '../../features/schemas.js';
-import { shouldHideLabels } from '../../lib/graph.js';
+import { labelVisible, neighborsOf } from './graph-data.js';
 import { nextPositions, type Point } from './graph-2d-layout.js';
+import { NodeIcon } from './graph-node-icon.js';
 import {
   centerOn,
   panBy,
@@ -78,6 +79,8 @@ export const Graph2DView = forwardRef<Graph2DViewHandle, Graph2DViewProps>(
     const svgRef = useRef<SVGSVGElement>(null);
     const [viewport, setViewport] = useState<Viewport>({ x: 0, y: 0, k: 1 });
     const [positions, setPositions] = useState<Map<string, Point>>(new Map());
+    const [hoveredNode, setHoveredNode] = useState<string | null>(null);
+    const [hoveredEdge, setHoveredEdge] = useState<string | null>(null);
     const positionsRef = useRef(positions);
     const selectedRef = useRef(selected);
     const dragRef = useRef<{
@@ -147,6 +150,10 @@ export const Graph2DView = forwardRef<Graph2DViewHandle, Graph2DViewProps>(
     const resetView = useCallback(() => {
       setViewport({ x: 0, y: 0, k: 1 });
     }, []);
+
+    const neighbors = hoveredNode
+      ? neighborsOf(edges, hoveredNode)
+      : new Set<string>();
 
     useImperativeHandle(ref, () => ({ focusNode, resetView }), [focusNode, resetView]);
 
@@ -224,6 +231,9 @@ export const Graph2DView = forwardRef<Graph2DViewHandle, Graph2DViewProps>(
           onDoubleClick={() => onBackgroundDoubleClick()}
         >
           <defs>
+            <pattern id="dot-grid" width="24" height="24" patternUnits="userSpaceOnUse">
+              <circle cx="1" cy="1" r="1" fill="var(--line)" opacity="0.4" />
+            </pattern>
             <marker
               id="arrow"
               viewBox="0 0 8 8"
@@ -236,7 +246,7 @@ export const Graph2DView = forwardRef<Graph2DViewHandle, Graph2DViewProps>(
               <path d="M0,0 L8,4 L0,8 z" fill="var(--line-strong)" />
             </marker>
           </defs>
-          <rect width={WIDTH} height={HEIGHT} fill="transparent" />
+          <rect width={WIDTH} height={HEIGHT} fill="url(#dot-grid)" pointerEvents="none" />
           <g transform={`translate(${viewport.x} ${viewport.y}) scale(${viewport.k})`}>
             {[...edges].map((edge) => {
               const from = positions.get(edge.fromId);
@@ -244,20 +254,75 @@ export const Graph2DView = forwardRef<Graph2DViewHandle, Graph2DViewProps>(
               if (!from || !to) {
                 return null;
               }
+              const dx = to.x - from.x;
+              const dy = to.y - from.y;
+              const length = Math.hypot(dx, dy) || 1;
+              const nx = (-dy / length) * 2;
+              const ny = (dx / length) * 2;
+              const conflict = edge.type === 'CONFLICTS_WITH';
+              const stroke = conflict ? 'var(--danger)' : 'var(--line-strong)';
               return (
-                <line
-                  key={edge.id}
-                  x1={from.x}
-                  y1={from.y}
-                  x2={to.x}
-                  y2={to.y}
-                  stroke={edge.type === 'CONFLICTS_WITH' ? 'var(--danger)' : 'var(--line-strong)'}
-                  strokeWidth={edge.type === 'CONFLICTS_WITH' ? 1.5 : 1}
-                  strokeDasharray={edge.status === 'pending' ? '4 3' : undefined}
-                  markerEnd="url(#arrow)"
-                >
-                  <title>{edge.type}</title>
-                </line>
+                <g key={edge.id}>
+                  {conflict ? (
+                    <>
+                      <line
+                        x1={from.x + nx}
+                        y1={from.y + ny}
+                        x2={to.x + nx}
+                        y2={to.y + ny}
+                        stroke={stroke}
+                        strokeWidth={1.5}
+                      />
+                      <line
+                        x1={from.x - nx}
+                        y1={from.y - ny}
+                        x2={to.x - nx}
+                        y2={to.y - ny}
+                        stroke={stroke}
+                        strokeWidth={1.5}
+                        markerEnd="url(#arrow)"
+                      />
+                    </>
+                  ) : (
+                    <line
+                      x1={from.x}
+                      y1={from.y}
+                      x2={to.x}
+                      y2={to.y}
+                      stroke={stroke}
+                      strokeWidth={1}
+                      strokeDasharray={edge.status === 'pending' ? '4 3' : undefined}
+                      markerEnd="url(#arrow)"
+                    />
+                  )}
+                  <line
+                    data-testid={`edge-hit-${edge.id}`}
+                    x1={from.x}
+                    y1={from.y}
+                    x2={to.x}
+                    y2={to.y}
+                    stroke="transparent"
+                    strokeWidth={12}
+                    onMouseEnter={() => setHoveredEdge(edge.id)}
+                    onMouseLeave={() => setHoveredEdge(null)}
+                    style={{ cursor: 'help' }}
+                  >
+                    <title>{edge.type}</title>
+                  </line>
+                  {hoveredEdge === edge.id ? (
+                    <text
+                      data-testid={`edge-label-${edge.id}`}
+                      x={(from.x + to.x) / 2}
+                      y={(from.y + to.y) / 2 - 6}
+                      textAnchor="middle"
+                      fontSize={11}
+                      fill="var(--ink-500)"
+                      style={{ pointerEvents: 'none' }}
+                    >
+                      {edge.type}
+                    </text>
+                  ) : null}
+                </g>
               );
             })}
             {nodes.map((node) => {
@@ -267,6 +332,8 @@ export const Graph2DView = forwardRef<Graph2DViewHandle, Graph2DViewProps>(
               }
               const isSelected = selected === node.id;
               const size = isSelected ? 20 : 14;
+              const dimmed =
+                hoveredNode !== null && node.id !== hoveredNode && !neighbors.has(node.id);
               return (
                 <g
                   key={node.id}
@@ -281,6 +348,9 @@ export const Graph2DView = forwardRef<Graph2DViewHandle, Graph2DViewProps>(
                       void onExpand(node);
                     }
                   }}
+                  onMouseEnter={() => setHoveredNode(node.id)}
+                  onMouseLeave={() => setHoveredNode(null)}
+                  opacity={dimmed ? 0.35 : 1}
                   style={{ cursor: 'pointer' }}
                   role="button"
                   tabIndex={0}
@@ -289,8 +359,23 @@ export const Graph2DView = forwardRef<Graph2DViewHandle, Graph2DViewProps>(
                   <title>
                     {node.name} · {node.type}
                   </title>
+                  {isSelected ? (
+                    <circle
+                      r={size + 6}
+                      fill="var(--accent)"
+                      opacity={0.12}
+                      style={{ pointerEvents: 'none' }}
+                    />
+                  ) : null}
                   {shapeFor(node, isSelected, size)}
-                  {!shouldHideLabels(nodes.length) || isSelected ? (
+                  <g color="var(--ink-700)" style={{ pointerEvents: 'none' }}>
+                    <NodeIcon type={node.type} />
+                  </g>
+                  {labelVisible(nodes.length, node.id, {
+                    selected,
+                    hovered: hoveredNode,
+                    neighbors,
+                  }) ? (
                     <text y={size + 14} textAnchor="middle" fontSize={12} fill="var(--ink-700)">
                       {node.name.slice(0, 16)}
                     </text>

@@ -56,6 +56,20 @@ function view(ref: React.RefObject<Graph2DViewHandle | null>) {
 }
 
 describe('Graph2DView', () => {
+  it('shows the relation type when hovering an edge', async () => {
+    render(view(createRef<Graph2DViewHandle>()));
+
+    await userEvent.hover(screen.getByTestId('edge-hit-e1'));
+    expect(screen.getByTestId('edge-label-e1')).toHaveTextContent('USES');
+  });
+
+  it('renders a dot grid and node type icon', () => {
+    render(view(createRef<Graph2DViewHandle>()));
+
+    expect(document.querySelector('#dot-grid')).not.toBeNull();
+    expect(screen.getByTestId('node-icon-technology')).toBeInTheDocument();
+  });
+
   it('zooms with buttons and resets the viewport', async () => {
     const ref = createRef<Graph2DViewHandle>();
     render(view(ref));
