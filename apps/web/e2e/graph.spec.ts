@@ -74,6 +74,7 @@ test('expand a node once and jump to entity highlight', async ({ page }) => {
   });
 
   await page.goto('/graph');
+  await page.getByRole('button', { name: '平面', exact: true }).click();
   await page.getByLabel('搜索实体').fill(entity);
   const result = page.getByRole('button', { name: entity }).first();
   await expect(result).toBeVisible({ timeout: 15_000 });
@@ -104,7 +105,10 @@ test('expand a node once and jump to entity highlight', async ({ page }) => {
 test('mobile graph defaults to list view', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 812 });
   await page.goto('/graph');
-  await expect(page.getByRole('button', { name: '图形视图' })).toBeVisible();
+  await expect(page.getByRole('button', { name: '列表', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
   expect(
     await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1),
   ).toBe(true);

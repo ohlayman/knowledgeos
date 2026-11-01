@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { PageHeader } from '../../components/business.js';
 import { Badge, EmptyState, ErrorState, SkeletonList, useToast } from '../../components/ui.js';
@@ -12,6 +12,13 @@ import {
 import { GraphNeighborhoodSchema, type GraphEdge, type GraphNode } from '../../features/schemas.js';
 import { apiFetch, errorMessage } from '../../lib/api-client.js';
 import { shouldAggregate, shouldHideLabels } from '../../lib/graph.js';
+import {
+  GRAPH_VIEW_STORAGE_KEY,
+  resolveViewMode,
+  type GraphViewMode,
+} from '../../lib/graph-view.js';
+import { supportsWebGL } from '../../lib/webgl.js';
+import type { Graph3DViewHandle } from './Graph3DView.js';
 
 const TYPE_LABELS: Record<string, string> = {
   concept: '概念',
@@ -22,6 +29,16 @@ const TYPE_LABELS: Record<string, string> = {
 };
 
 const WIDTH = 900;
+
+const Graph3DView = lazy(() =>
+  import('./Graph3DView.js').then((module) => ({ default: module.Graph3DView })),
+);
+
+const VIEW_MODES: Array<[GraphViewMode, string]> = [
+  ['3d', '3D'],
+  ['2d', '平面'],
+  ['list', '列表'],
+];
 const HEIGHT = 620;
 
 function positionOf(node: GraphNode, index: number): { x: number; y: number } {
@@ -76,15 +93,35 @@ export function GraphPage() {
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [drawerTab, setDrawerTab] = useState<'detail' | 'relations' | 'sources'>('detail');
-  const [listView, setListView] = useState(
-    () => typeof window !== 'undefined' && window.innerWidth <= 767,
+  const [webgl] = useState(() => supportsWebGL());
+  const [viewMode, setViewMode] = useState<GraphViewMode>(() =>
+    resolveViewMode(
+      typeof localStorage === 'undefined'
+        ? null
+        : localStorage.getItem(GRAPH_VIEW_STORAGE_KEY),
+      typeof window === 'undefined' ? 1440 : window.innerWidth,
+      webgl,
+    ),
   );
+  const graph3DRef = useRef<Graph3DViewHandle>(null);
+  const [camera, setCamera] = useState('0,0,620');
+  const [engine, setEngine] = useState<'running' | 'stopped'>('running');
   const [clusterType, setClusterType] = useState<string | null>(null);
 
   const searchEntities = useWikiEntities(search.trim() || undefined);
   const mentions = useEntityMentions(selected ?? undefined);
   const pendingRelations = useGraphPending();
   const confirmRelation = useConfirmRelation();
+
+  useEffect(() => {
+    const onResize = () => {
+      setViewMode((current) =>
+        resolveViewMode(current, window.innerWidth, supportsWebGL()),
+      );
+    };
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
 
   useEffect(() => {
     if (nodes.size > 0 || !entry.data) {
@@ -146,6 +183,12 @@ export function GraphPage() {
     return map;
   }, [visibleNodes]);
 
+  useEffect(() => {
+    if (viewMode === '3d') {
+      setEngine('running');
+    }
+  }, [viewMode, nodes.size]);
+
   const selectedNode = selected ? nodes.get(selected) : null;
   const selectedEdges = selected
     ? [...edges.values()].filter((edge) => edge.fromId === selected || edge.toId === selected)
@@ -186,7 +229,13 @@ export function GraphPage() {
   }
 
   return (
-    <div className="page" style={{ paddingBottom: 12 }}>
+    <div
+      className="page"
+      style={{ paddingBottom: 12 }}
+      data-view-mode={viewMode}
+      data-camera={camera}
+      data-engine={engine}
+    >
       <PageHeader
         title="知识图谱"
         subtitle={
@@ -195,22 +244,52 @@ export function GraphPage() {
             : `显示高频概念，搜索或点击节点查看关系（节点 ${nodes.size}）`
         }
         actions={
-          <button type="button" className="btn" onClick={() => setListView((value) => !value)}>
-            {listView ? '图形视图' : '列表视图'}
-          </button>
+          <div className="row" role="group" aria-label="图谱视图">
+            {VIEW_MODES.map(([mode, label]) => (
+              <button
+                key={mode}
+                type="button"
+                className={`btn sm ${viewMode === mode ? 'primary' : ''}`}
+                aria-pressed={viewMode === mode}
+                disabled={mode === '3d' && (!webgl || aggregate)}
+                onClick={() => {
+                  setViewMode(mode);
+                  localStorage.setItem(GRAPH_VIEW_STORAGE_KEY, mode);
+                }}
+              >
+                {label}
+              </button>
+            ))}
+            {viewMode === '3d' && !aggregate ? (
+              <button
+                type="button"
+                className="btn ghost sm"
+                onClick={() => graph3DRef.current?.resetView()}
+              >
+                重置视图
+              </button>
+            ) : null}
+          </div>
         }
       />
 
       {aggregate ? (
         <div className="card card-pad" style={{ marginBottom: 12 }}>
           当前视图已聚合。{' '}
-          <button type="button" className="btn sm" onClick={() => setListView(true)}>
+          <button
+            type="button"
+            className="btn sm"
+            onClick={() => {
+              setViewMode('list');
+              localStorage.setItem(GRAPH_VIEW_STORAGE_KEY, 'list');
+            }}
+          >
             切换到列表视图
           </button>
         </div>
       ) : null}
 
-      {!listView ? (
+      {viewMode !== 'list' ? (
         <div className="row" style={{ alignItems: 'flex-start', gap: 12 }}>
           <div style={{ position: 'relative', flex: 1 }}>
             <div className="row" style={{ marginBottom: 8 }}>
@@ -247,6 +326,9 @@ export function GraphPage() {
                       mergeNeighborhood({ nodes: [node], edges: [] });
                       setSearch('');
                       void expand(node);
+                      if (viewMode === '3d') {
+                        graph3DRef.current?.focusNode(node.id);
+                      }
                     }}
                   >
                     {entity.canonicalName}
@@ -282,8 +364,26 @@ export function GraphPage() {
                     </button>
                   ))}
                 </div>
+              ) : viewMode === '3d' ? (
+                <Suspense
+                  fallback={<div className="skeleton" style={{ minHeight: 620 }} aria-busy="true" />}
+                >
+                  <Graph3DView
+                    ref={graph3DRef}
+                    nodes={[...nodes.values()]}
+                    edges={[...edges.values()]}
+                    selected={selected}
+                    onSelect={setSelected}
+                    onExpand={(node) => void expand(node)}
+                    onCameraChange={(position) =>
+                      setCamera(`${position.x},${position.y},${position.z}`)
+                    }
+                    onEngineStop={() => setEngine('stopped')}
+                  />
+                </Suspense>
               ) : (
                 <svg
+                  data-testid="graph2d-canvas"
                   viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
                   style={{ width: '100%', height: 'auto', display: 'block' }}
                   role="img"
