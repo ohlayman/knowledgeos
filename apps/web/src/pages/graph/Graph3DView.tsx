@@ -38,6 +38,7 @@ export interface Graph3DViewProps {
   onExpand: (node: GraphNode) => void;
   onEngineStop?: () => void;
   onCameraChange?: (position: { x: number; y: number; z: number }) => void;
+  onContextLost?: () => void;
   onSlow?: () => void;
 }
 
@@ -67,7 +68,17 @@ function createGeometry(shape: NodeGeometry, size: number): THREE.BufferGeometry
 
 export const Graph3DView = forwardRef<Graph3DViewHandle, Graph3DViewProps>(
   function Graph3DView(
-    { nodes, edges, selected, onSelect, onExpand, onEngineStop, onCameraChange, onSlow },
+    {
+      nodes,
+      edges,
+      selected,
+      onSelect,
+      onExpand,
+      onEngineStop,
+      onCameraChange,
+      onContextLost,
+      onSlow,
+    },
     ref,
   ) {
     const { resolved } = useTheme();
@@ -132,6 +143,32 @@ export const Graph3DView = forwardRef<Graph3DViewHandle, Graph3DViewProps>(
     useEffect(() => {
       graphRef.current?.refresh();
     }, [selected, hovered]);
+
+    useEffect(() => {
+      if (!onContextLost) {
+        return;
+      }
+      const attach = () => {
+        const canvas = containerRef.current?.querySelector('canvas');
+        if (!canvas) {
+          return undefined;
+        }
+        const handler = (event: Event) => {
+          event.preventDefault();
+          onContextLost();
+        };
+        canvas.addEventListener('webglcontextlost', handler);
+        return () => canvas.removeEventListener('webglcontextlost', handler);
+      };
+      let cleanup: (() => void) | undefined;
+      const timer = setTimeout(() => {
+        cleanup = attach();
+      }, 0);
+      return () => {
+        clearTimeout(timer);
+        cleanup?.();
+      };
+    }, [onContextLost]);
 
     useEffect(() => {
       if (firstFrameAt.current === null) {

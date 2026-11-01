@@ -105,6 +105,9 @@ export function GraphPage() {
     ),
   );
   const graph3DRef = useRef<Graph3DViewHandle>(null);
+  const [graphNotice, setGraphNotice] = useState<'webgl' | 'lost' | 'slow' | null>(() =>
+    webgl ? null : 'webgl',
+  );
   const [camera, setCamera] = useState('0,0,620');
   const [engine, setEngine] = useState<'running' | 'stopped'>('running');
   const [clusterType, setClusterType] = useState<string | null>(null);
@@ -274,6 +277,41 @@ export function GraphPage() {
         }
       />
 
+      {graphNotice ? (
+        <div className="card card-pad" role="status" style={{ marginBottom: 12 }}>
+          <div className="between" style={{ flexWrap: 'wrap', gap: 8 }}>
+            <span className="tiny">
+              {graphNotice === 'webgl'
+                ? '当前设备不支持 3D，已切换到平面视图。'
+                : graphNotice === 'lost'
+                  ? '3D 上下文已丢失，已切换到平面视图。'
+                  : '3D 视图可能较慢，可切到平面视图。'}
+            </span>
+            <div className="row">
+              {viewMode === '3d' ? (
+                <button
+                  type="button"
+                  className="btn sm"
+                  onClick={() => {
+                    setViewMode('2d');
+                    localStorage.setItem(GRAPH_VIEW_STORAGE_KEY, '2d');
+                  }}
+                >
+                  切到平面视图
+                </button>
+              ) : null}
+              <button
+                type="button"
+                className="btn ghost sm"
+                onClick={() => setGraphNotice(null)}
+              >
+                关闭
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       <GraphA11yList
         nodes={visibleNodes}
         selected={selected}
@@ -387,6 +425,12 @@ export function GraphPage() {
                       setCamera(`${position.x},${position.y},${position.z}`)
                     }
                     onEngineStop={() => setEngine('stopped')}
+                    onSlow={() => setGraphNotice('slow')}
+                    onContextLost={() => {
+                      setViewMode('2d');
+                      localStorage.setItem(GRAPH_VIEW_STORAGE_KEY, '2d');
+                      setGraphNotice('lost');
+                    }}
                   />
                 </Suspense>
               ) : (

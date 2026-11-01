@@ -95,3 +95,30 @@ test('hidden node list expands a node once', async ({ page }) => {
   await page.waitForTimeout(700);
   expect(neighborRequests).toBe(afterFirst);
 });
+
+test('falls back to plane view when WebGL is unavailable', async ({ page }) => {
+  await page.addInitScript(() => {
+    HTMLCanvasElement.prototype.getContext = () => null;
+  });
+  await page.goto('/graph');
+  await expect(page.getByTestId('graph2d-canvas')).toBeVisible();
+  await expect(page.getByText('当前设备不支持 3D')).toBeVisible();
+});
+
+test('falls back when the WebGL context is lost', async ({ page }) => {
+  const webgl = await page.evaluate(() => {
+    const canvas = document.createElement('canvas');
+    return Boolean(canvas.getContext('webgl2') ?? canvas.getContext('webgl'));
+  });
+  test.skip(!webgl, '本机 Playwright 无 WebGL');
+
+  await page.goto('/graph');
+  const canvas = page.locator('.graph-3d canvas');
+  await expect(canvas).toBeVisible();
+  await canvas.evaluate((element) => {
+    element.dispatchEvent(new Event('webglcontextlost', { cancelable: true }));
+  });
+
+  await expect(page.getByTestId('graph2d-canvas')).toBeVisible();
+  await expect(page.getByText('3D 上下文已丢失')).toBeVisible();
+});
