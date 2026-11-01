@@ -16,7 +16,7 @@ import {
   type GraphNode,
 } from '../../features/schemas.js';
 import { apiFetch, errorMessage } from '../../lib/api-client.js';
-import { shouldAggregate, shouldHideLabels } from '../../lib/graph.js';
+import { shouldAggregate } from '../../lib/graph.js';
 import {
   GRAPH_VIEW_STORAGE_KEY,
   resolveViewMode,
@@ -25,6 +25,7 @@ import {
 import { supportsWebGL } from '../../lib/webgl.js';
 import type { Graph3DViewHandle } from './Graph3DView.js';
 import { GraphA11yList } from './GraphA11yList.js';
+import { Graph2DView, type Graph2DViewHandle } from './Graph2DView.js';
 
 const TYPE_LABELS: Record<string, string> = {
   concept: '概念',
@@ -33,8 +34,6 @@ const TYPE_LABELS: Record<string, string> = {
   agent: 'Agent',
   protocol: '协议',
 };
-
-const WIDTH = 900;
 
 const Graph3DView = lazy(() =>
   import('./Graph3DView.js').then((module) => ({ default: module.Graph3DView })),
@@ -45,50 +44,6 @@ const VIEW_MODES: Array<[GraphViewMode, string]> = [
   ['2d', '平面'],
   ['list', '列表'],
 ];
-const HEIGHT = 620;
-
-function positionOf(node: GraphNode, index: number): { x: number; y: number } {
-  const hash = [...node.id].reduce((sum, char) => sum + char.charCodeAt(0), 0);
-  const angle = ((index * 137.508 + (hash % 23)) * Math.PI) / 180;
-  const radius = 110 + (index % 4) * 70;
-  return { x: WIDTH / 2 + radius * Math.cos(angle), y: HEIGHT / 2 + radius * Math.sin(angle) };
-}
-
-function shapeFor(node: GraphNode, selected: boolean, size: number) {
-  const fill = selected ? 'var(--accent-weak)' : 'var(--paper-1)';
-  const stroke = selected ? 'var(--accent)' : 'var(--line-strong)';
-  const strokeWidth = selected ? 2 : 1.5;
-
-  switch (node.type) {
-    case 'technology':
-    case 'project':
-      return (
-        <rect
-          x={-size}
-          y={-size}
-          width={size * 2}
-          height={size * 2}
-          rx={6}
-          fill={fill}
-          stroke={stroke}
-          strokeWidth={strokeWidth}
-        />
-      );
-    case 'agent':
-    case 'protocol':
-      return (
-        <polygon
-          points={`0,${-size} ${size},0 0,${size} ${-size},0`}
-          fill={fill}
-          stroke={stroke}
-          strokeWidth={strokeWidth}
-        />
-      );
-    default:
-      return <circle r={size} fill={fill} stroke={stroke} strokeWidth={strokeWidth} />;
-  }
-}
-
 export function GraphPage() {
   const entry = useGraphEntry();
   const toast = useToast();
@@ -108,6 +63,7 @@ export function GraphPage() {
     ),
   );
   const graph3DRef = useRef<Graph3DViewHandle>(null);
+  const graph2DRef = useRef<Graph2DViewHandle>(null);
   const [graphNotice, setGraphNotice] = useState<'webgl' | 'lost' | 'slow' | null>(() =>
     webgl ? null : 'webgl',
   );
@@ -204,12 +160,6 @@ export function GraphPage() {
     }
     return all;
   }, [nodes, clusterType]);
-
-  const positions = useMemo(() => {
-    const map = new Map<string, { x: number; y: number }>();
-    visibleNodes.forEach((node, index) => map.set(node.id, positionOf(node, index)));
-    return map;
-  }, [visibleNodes]);
 
   useEffect(() => {
     if (viewMode === '3d') {
@@ -406,6 +356,8 @@ export function GraphPage() {
                       void expand(node);
                       if (viewMode === '3d') {
                         graph3DRef.current?.focusNode(node.id);
+                      } else if (viewMode === '2d') {
+                        graph2DRef.current?.focusNode(node.id);
                       }
                     }}
                   >
@@ -468,85 +420,20 @@ export function GraphPage() {
                   />
                 </Suspense>
               ) : (
-                <svg
-                  data-testid="graph2d-canvas"
-                  viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
-                  style={{ width: '100%', height: 'auto', display: 'block' }}
-                  role="img"
-                  aria-label="知识图谱"
-                  onDoubleClick={() => {
+                <Graph2DView
+                  ref={graph2DRef}
+                  nodes={visibleNodes}
+                  edges={[...edges.values()]}
+                  selected={selected}
+                  expanded={expanded}
+                  onSelect={setSelected}
+                  onExpand={(node) => void expand(node)}
+                  onBackgroundDoubleClick={() => {
                     setSelected(null);
                     setClusterType(null);
+                    graph2DRef.current?.resetView();
                   }}
-                >
-                  <defs>
-                    <marker
-                      id="arrow"
-                      viewBox="0 0 8 8"
-                      refX="7"
-                      refY="4"
-                      markerWidth="6"
-                      markerHeight="6"
-                      orient="auto"
-                    >
-                      <path d="M0,0 L8,4 L0,8 z" fill="var(--line-strong)" />
-                    </marker>
-                  </defs>
-                  {[...edges.values()].map((edge) => {
-                    const from = positions.get(edge.fromId);
-                    const to = positions.get(edge.toId);
-                    if (!from || !to) {
-                      return null;
-                    }
-                    return (
-                      <line
-                        key={edge.id}
-                        x1={from.x}
-                        y1={from.y}
-                        x2={to.x}
-                        y2={to.y}
-                        stroke={
-                          edge.type === 'CONFLICTS_WITH' ? 'var(--danger)' : 'var(--line-strong)'
-                        }
-                        strokeWidth={edge.type === 'CONFLICTS_WITH' ? 1.5 : 1}
-                        strokeDasharray={edge.status === 'pending' ? '4 3' : undefined}
-                        markerEnd="url(#arrow)"
-                      >
-                        <title>{edge.type}</title>
-                      </line>
-                    );
-                  })}
-                  {visibleNodes.map((node) => {
-                    const point = positions.get(node.id)!;
-                    const isSelected = selected === node.id;
-                    const size = isSelected ? 20 : 14;
-                    return (
-                      <g
-                        key={node.id}
-                        transform={`translate(${point.x}, ${point.y})`}
-                        onClick={() => void expand(node)}
-                        style={{ cursor: 'pointer' }}
-                        role="button"
-                        aria-label={`节点 ${node.name}`}
-                      >
-                        <title>
-                          {node.name} · {TYPE_LABELS[node.type] ?? node.type}
-                        </title>
-                        {shapeFor(node, isSelected, size)}
-                        {!shouldHideLabels(visibleNodes.length) || isSelected ? (
-                          <text
-                            y={size + 14}
-                            textAnchor="middle"
-                            fontSize={12}
-                            fill="var(--ink-700)"
-                          >
-                            {node.name.slice(0, 16)}
-                          </text>
-                        ) : null}
-                      </g>
-                    );
-                  })}
-                </svg>
+                />
               )}
             </div>
             <p className="tiny muted" style={{ marginTop: 6 }}>

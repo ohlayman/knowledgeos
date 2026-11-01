@@ -854,3 +854,21 @@ a.metric:hover {
 .graph-3d canvas {
   display: block;
 }
+
+/* graph 2d */
+.graph-2d {
+  position: relative;
+}
+
+.graph-2d-controls {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 2;
+  display: flex;
+  gap: 6px;
+  padding: 4px;
+  border-radius: var(--r-c);
+  background: color-mix(in srgb, var(--paper-0) 88%, transparent);
+  border: 1px solid var(--line);
+}
