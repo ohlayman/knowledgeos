@@ -22,7 +22,18 @@ vi.mock('../../features/hooks.js', () => ({
     isLoading: false,
     isError: false,
   }),
-  useWikiEntities: () => ({ data: [] }),
+  useWikiEntities: () => ({
+    data: [
+      {
+        id: 'a',
+        canonicalName: 'RRF',
+        type: 'concept',
+        aliases: [],
+        mentionCount: 2,
+        confidence: 0.8,
+      },
+    ],
+  }),
   useEntityMentions: () => ({ data: [] }),
   useGraphPending: () => ({ data: [] }),
   useConfirmRelation: () => ({ mutate: vi.fn(), isPending: false }),
@@ -62,6 +73,21 @@ describe('GraphPage 视图切换', () => {
 
     await waitFor(() => expect(screen.getByTestId('graph2d-canvas')).toBeVisible());
     expect(localStorage.getItem(GRAPH_VIEW_STORAGE_KEY)).toBe('2d');
+  });
+
+  it('搜索后出现面包屑并可回到节点', async () => {
+    render(
+      <MemoryRouter>
+        <GraphPage />
+      </MemoryRouter>,
+    );
+
+    await screen.findByTestId('graph3d-view');
+    await userEvent.click(screen.getByRole('button', { name: '平面' }));
+    await userEvent.type(screen.getByLabelText('搜索实体'), 'RRF');
+    await userEvent.click(screen.getByRole('button', { name: /^RRF$/ }));
+
+    expect(await screen.findByRole('navigation', { name: '图谱路径' })).toBeInTheDocument();
   });
 
   it('列表模式不再渲染隐藏节点列表', async () => {

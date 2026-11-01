@@ -51,6 +51,7 @@ export function GraphPage() {
   const [edges, setEdges] = useState<Map<string, GraphEdge>>(new Map());
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [selected, setSelected] = useState<string | null>(null);
+  const [focusPath, setFocusPath] = useState<string[]>([]);
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [drawerTab, setDrawerTab] = useState<'detail' | 'relations' | 'sources'>('detail');
@@ -137,6 +138,9 @@ export function GraphPage() {
 
   const expand = async (node: GraphNode) => {
     setSelected(node.id);
+    setFocusPath((current) =>
+      current[current.length - 1] === node.id ? current : [...current, node.id],
+    );
     setDrawerTab('detail');
     if (expanded.has(node.id) || loadingId) {
       return;
@@ -261,6 +265,30 @@ export function GraphPage() {
         }
       />
 
+      {focusPath.length > 0 && viewMode !== 'list' ? (
+        <nav className="row" aria-label="图谱路径" style={{ flexWrap: 'wrap', marginBottom: 8 }}>
+          {focusPath.map((id, index) => (
+            <span key={id} className="row" style={{ gap: 4 }}>
+              {index > 0 ? <span className="tiny muted">→</span> : null}
+              <button
+                type="button"
+                className={`btn sm ${selected === id ? 'primary' : 'ghost'}`}
+                onClick={() => {
+                  setSelected(id);
+                  if (viewMode === '3d') {
+                    graph3DRef.current?.focusNode(id);
+                  } else {
+                    graph2DRef.current?.focusNode(id);
+                  }
+                }}
+              >
+                {nodeLabel(id)}
+              </button>
+            </span>
+          ))}
+        </nav>
+      ) : null}
+
       {graphNotice ? (
         <div className="card card-pad" role="status" style={{ marginBottom: 12 }}>
           <div className="between" style={{ flexWrap: 'wrap', gap: 8 }}>
@@ -333,6 +361,7 @@ export function GraphPage() {
             </div>
             {search.trim().length > 0 && searchEntities.data ? (
               <div
+                data-testid="entity-search-results"
                 className="card card-pad"
                 style={{ marginBottom: 8, maxHeight: 140, overflowY: 'auto' }}
               >
@@ -430,6 +459,7 @@ export function GraphPage() {
                   onExpand={(node) => void expand(node)}
                   onBackgroundDoubleClick={() => {
                     setSelected(null);
+                    setFocusPath([]);
                     setClusterType(null);
                     graph2DRef.current?.resetView();
                   }}
