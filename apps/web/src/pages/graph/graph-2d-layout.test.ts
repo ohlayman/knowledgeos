@@ -24,11 +24,7 @@ describe('graph 2d layout', () => {
 
   it('places new nodes around the expanded parent', () => {
     const parent = { x: 450, y: 310 };
-    const next = nextPositions(
-      [node('a'), node('b'), node('c')],
-      new Map([['a', parent]]),
-      parent,
-    );
+    const next = nextPositions([node('a'), node('b'), node('c')], new Map([['a', parent]]), parent);
 
     for (const id of ['b', 'c']) {
       const point = next.get(id)!;

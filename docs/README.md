@@ -8,7 +8,7 @@
 | --- | --- | --- | --- |
 | **V1**（基线） | `PRD.md` | `UI_UX_DESIGN.md` | 已定稿，进入实现 |
 | **V1.5**（LLM Wiki） | `PRD_V1.5_Wiki.md` | `UIUX_V1.5_Wiki.md` | 已实现，12/12 验收通过 |
-| **V2**（图谱 + Agent Studio） | `PRD_V2_Graph_Agent.md` | `UIUX_V2_Graph_Agent.md` | 已实现，12/12 验收通过；V2.1 3D 图谱 10/10 |
+| **V2**（图谱 + Agent Studio） | `PRD_V2_Graph_Agent.md` | `UIUX_V2_Graph_Agent.md` | 已实现，12/12 验收通过；V2.1 3D 10/10、V2.2 平面交互 8/8 |
 | **V3**（MCP Server） | `PRD_V3_MCP.md` | `UIUX_V3_MCP.md` | 已实现，11/11 验收通过 |
 
 ## 二、跨版本文档
@@ -27,6 +27,7 @@
 | `GRAPH_QUALITY_REPORT.md` | 关系类型分布、证据可解析率、待定/人工确认占比 | V2 |
 | `ACCEPTANCE_V2.1.md` | 3D 图谱 10 条验收、限制与复现命令 | V2.1 |
 | `GRAPH_3D_PERFORMANCE_REPORT.md` | 3D 首帧、400 节点帧率、chunk 体积与降级耗时 | V2.1 |
+| `ACCEPTANCE_V2.2.md` | 平面图谱缩放/平移/搜索/面包屑/悬停等 8 条验收 | V2.2 |
 | `ACCEPTANCE_V3.md` | V3 的 10 条验收 + 工具连通性、客户端配置与限制 | V3 |
 | `MCP_USABILITY_REPORT.md` | MCP 工具调用成功率、延迟与「为什么不用」分析 | V3 |
 | `PERFORMANCE_REPORT.md` | 接口、检索、首 token 与处理耗时 | V1 |
@@ -46,7 +47,7 @@
 | DATABASE_DESIGN.md | 已产出 | 全版本表一次建好，后续只做增量迁移 |
 | IMPLEMENTATION_PLAN.md | 已产出 | V1 逐任务可执行，后续版本里程碑级 |
 
-**当前进度：V3 与 V2.1 验收完成。** V1 的 M0–M8、V1.5 的 V15-M1–M10、V2 的 V2-M1–M8、V3 的 V3-M1–M9 与 V2.1 的 3D 图谱均已完成；验收记录见 `ACCEPTANCE_V1.md`、`ACCEPTANCE_V1.5.md`、`ACCEPTANCE_V2.md`、`ACCEPTANCE_V2.1.md` 与 `ACCEPTANCE_V3.md`，进度以 `PROGRESS.md` 为唯一台账。V1 发布（打 tag / GitHub Release）由用户决定暂缓。
+**当前进度：V3、V2.1 与 V2.2 验收完成。** V1 的 M0–M8、V1.5 的 V15-M1–M10、V2 的 V2-M1–M8、V3 的 V3-M1–M9、V2.1 的 3D 图谱与 V2.2 的平面交互均已完成；验收记录见 `ACCEPTANCE_V1.md`、`ACCEPTANCE_V1.5.md`、`ACCEPTANCE_V2.md`、`ACCEPTANCE_V2.1.md`、`ACCEPTANCE_V2.2.md` 与 `ACCEPTANCE_V3.md`，进度以 `PROGRESS.md` 为唯一台账。V1 发布（打 tag / GitHub Release）由用户决定暂缓。
 
 需要注意的是：**四个版本的 PRD 是并行评审、串行实现的。** V2 依赖 V1.5 的实体抽取质量，V3 依赖 V1 的检索质量，因此实现顺序仍是 V1 → V1.5 → V2 → V3，不能因为 V3 文档写完了就先做 V3。
 
