@@ -247,7 +247,7 @@
 | 处理中普通接口 P95 | DONE | 13ms | ≤ 500ms |
 | 引用可解析率 | DONE | 100%（20/20） | 100% |
 | 正文对比度 | DONE | 最低 5.00:1 | ≥ 4.5:1 |
-| 单测 | DONE | 320/320 通过（api 74 + shared 50 + web 55 + parser 25 + wiki-engine 25 + graph 12 + agent-core 12 + llm 12 + extraction 10 + embeddings 10 + chunking 8 + mcp-server 8 + storage 8 + retrieval 9 + queue 2） | 全绿 |
+| 单测 | DONE | 321/321 通过（api 74 + shared 50 + web 56 + parser 25 + wiki-engine 25 + graph 12 + agent-core 12 + llm 12 + extraction 10 + embeddings 10 + chunking 8 + mcp-server 8 + storage 8 + retrieval 9 + queue 2） | 全绿 |
 | 集成 | DONE | 72/72 通过（数据库 23 + api 25 + worker 11 + 检索 11 + 队列 1 + 评测 1） | 全绿 |
 | E2E | DONE | 25/25 通过（V1、Wiki、图谱、Agent、MCP、3D 图谱 8 条、2D 交互 3 条、移动端） | 全绿 |
 | V1.5 验收 | DONE | 12/12 通过（`pnpm accept:v15`） | 全绿 |

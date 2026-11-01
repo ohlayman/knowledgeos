@@ -79,6 +79,12 @@ export const Graph2DView = forwardRef<Graph2DViewHandle, Graph2DViewProps>(funct
   const previousIds = useRef<Set<string>>(new Set());
   const positionsRef = useRef(positions);
   const selectedRef = useRef(selected);
+  const nodeDragRef = useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    moved: boolean;
+  } | null>(null);
   const dragRef = useRef<{
     pointerId: number;
     startX: number;
@@ -340,21 +346,52 @@ export const Graph2DView = forwardRef<Graph2DViewHandle, Graph2DViewProps>(funct
                 data-testid={`node-${node.id}`}
                 data-entering={entering.has(node.id) ? 'true' : undefined}
                 transform={`translate(${point.x}, ${point.y})`}
-                onClick={() => void onExpand(node)}
-                onPointerDown={(event) => event.stopPropagation()}
-                onDoubleClick={(event) => event.stopPropagation()}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault();
-                    void onExpand(node);
+                onClick={() => {
+                  const drag = nodeDragRef.current;
+                  nodeDragRef.current = null;
+                  if (drag?.moved) {
+                    return;
+                  }
+                  void onExpand(node);
+                }}
+                onPointerDown={(event) => {
+                  event.stopPropagation();
+                  nodeDragRef.current = {
+                    pointerId: event.pointerId,
+                    startX: event.clientX,
+                    startY: event.clientY,
+                    moved: false,
+                  };
+                  event.currentTarget.setPointerCapture?.(event.pointerId);
+                }}
+                onPointerMove={(event) => {
+                  const drag = nodeDragRef.current;
+                  if (
+                    drag &&
+                    drag.pointerId === event.pointerId &&
+                    Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) > 4
+                  ) {
+                    drag.moved = true;
                   }
                 }}
+                onPointerUp={(event) => {
+                  const drag = nodeDragRef.current;
+                  if (
+                    drag &&
+                    Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) > 4
+                  ) {
+                    drag.moved = true;
+                  }
+                }}
+                onPointerCancel={() => {
+                  nodeDragRef.current = null;
+                }}
+                onDoubleClick={(event) => event.stopPropagation()}
                 onMouseEnter={() => setHoveredNode(node.id)}
                 onMouseLeave={() => setHoveredNode(null)}
                 opacity={dimmed ? 0.35 : 1}
                 style={{ cursor: 'pointer' }}
                 role="button"
-                tabIndex={0}
                 aria-label={`节点 ${node.name}`}
               >
                 <title>

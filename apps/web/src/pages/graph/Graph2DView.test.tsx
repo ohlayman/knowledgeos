@@ -1,5 +1,5 @@
 import { createRef } from 'react';
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import type { GraphEdge, GraphNode } from '../../features/schemas.js';
@@ -61,6 +61,29 @@ describe('Graph2DView', () => {
 
     await userEvent.hover(screen.getByTestId('edge-hit-e1'));
     expect(screen.getByTestId('edge-label-e1')).toHaveTextContent('USES');
+  });
+
+  it('does not expand when a node is dragged beyond the threshold', () => {
+    const onExpand = vi.fn();
+    render(
+      <Graph2DView
+        nodes={nodes}
+        edges={edges}
+        selected={null}
+        expanded={new Set()}
+        onSelect={vi.fn()}
+        onExpand={onExpand}
+        onBackgroundDoubleClick={vi.fn()}
+      />,
+    );
+
+    const node = screen.getByTestId('node-a');
+    fireEvent(node, new MouseEvent('pointerdown', { bubbles: true, clientX: 10, clientY: 10 }));
+    fireEvent(node, new MouseEvent('pointermove', { bubbles: true, clientX: 60, clientY: 50 }));
+    fireEvent(node, new MouseEvent('pointerup', { bubbles: true, clientX: 60, clientY: 50 }));
+    fireEvent.click(node);
+
+    expect(onExpand).not.toHaveBeenCalled();
   });
 
   it('marks newly added nodes as entering', () => {
