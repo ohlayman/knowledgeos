@@ -872,3 +872,64 @@ a.metric:hover {
   background: color-mix(in srgb, var(--paper-0) 88%, transparent);
   border: 1px solid var(--line);
 }
+
+.graph-node-enter {
+  animation: graph-node-enter 180ms ease-out;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+@keyframes graph-node-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.graph-2d-note {
+  position: absolute;
+  left: 50%;
+  bottom: 52px;
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 4px 10px;
+  border-radius: var(--r-c);
+  border: 1px solid var(--line);
+  background: var(--paper-0);
+  color: var(--ink-500);
+  font-size: 12px;
+}
+
+.graph-2d-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--line);
+  background: var(--paper-0);
+  color: var(--ink-500);
+  font-size: 11px;
+}
+
+.legend-line {
+  display: inline-block;
+  width: 18px;
+  height: 1px;
+  background: var(--line-strong);
+}
+
+.legend-line.dashed {
+  background: none;
+  border-top: 1px dashed var(--text-disabled);
+}
+
+.legend-line.conflict {
+  height: 3px;
+  border-top: 1px solid var(--danger);
+  border-bottom: 1px solid var(--danger);
+  background: none;
+}

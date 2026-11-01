@@ -81,6 +81,8 @@ export const Graph2DView = forwardRef<Graph2DViewHandle, Graph2DViewProps>(
     const [positions, setPositions] = useState<Map<string, Point>>(new Map());
     const [hoveredNode, setHoveredNode] = useState<string | null>(null);
     const [hoveredEdge, setHoveredEdge] = useState<string | null>(null);
+    const [entering, setEntering] = useState<Set<string>>(new Set());
+    const previousIds = useRef<Set<string>>(new Set());
     const positionsRef = useRef(positions);
     const selectedRef = useRef(selected);
     const dragRef = useRef<{
@@ -99,6 +101,20 @@ export const Graph2DView = forwardRef<Graph2DViewHandle, Graph2DViewProps>(
     useEffect(() => {
       selectedRef.current = selected;
     }, [selected]);
+
+    useEffect(() => {
+      const currentIds = new Set(nodes.map((node) => node.id));
+      const added = nodes
+        .filter((node) => !previousIds.current.has(node.id))
+        .map((node) => node.id);
+      previousIds.current = currentIds;
+      if (added.length === 0) {
+        return;
+      }
+      setEntering(new Set(added));
+      const timer = window.setTimeout(() => setEntering(new Set()), 220);
+      return () => window.clearTimeout(timer);
+    }, [nodes]);
 
     useEffect(() => {
       setPositions((current) => {
@@ -338,6 +354,7 @@ export const Graph2DView = forwardRef<Graph2DViewHandle, Graph2DViewProps>(
                 <g
                   key={node.id}
                   data-testid={`node-${node.id}`}
+                  data-entering={entering.has(node.id) ? 'true' : undefined}
                   transform={`translate(${point.x}, ${point.y})`}
                   onClick={() => void onExpand(node)}
                   onPointerDown={(event) => event.stopPropagation()}
@@ -359,7 +376,8 @@ export const Graph2DView = forwardRef<Graph2DViewHandle, Graph2DViewProps>(
                   <title>
                     {node.name} · {node.type}
                   </title>
-                  {isSelected ? (
+                  <g className={entering.has(node.id) ? 'graph-node-enter' : undefined}>
+                    {isSelected ? (
                     <circle
                       r={size + 6}
                       fill="var(--accent)"
@@ -377,14 +395,50 @@ export const Graph2DView = forwardRef<Graph2DViewHandle, Graph2DViewProps>(
                     neighbors,
                   }) ? (
                     <text y={size + 14} textAnchor="middle" fontSize={12} fill="var(--ink-700)">
-                      {node.name.slice(0, 16)}
-                    </text>
-                  ) : null}
+                        {node.name.slice(0, 16)}
+                      </text>
+                    ) : null}
+                  </g>
                 </g>
               );
             })}
           </g>
         </svg>
+        {selected && !edges.some((edge) => edge.fromId === selected || edge.toId === selected) ? (
+          <p data-testid="graph2d-no-neighbor" className="graph-2d-note">
+            该概念暂未建立关系
+          </p>
+        ) : null}
+        <div className="graph-2d-legend" aria-label="图例">
+          {(
+            [
+              ['concept', '概念'],
+              ['technology', '技术'],
+              ['project', '项目'],
+              ['agent', 'Agent'],
+              ['protocol', '协议'],
+            ] as const
+          ).map(([type, label]) => (
+            <span key={type} className="row" style={{ gap: 4 }}>
+              <span style={{ color: 'var(--ink-700)', display: 'inline-flex' }}>
+                <NodeIcon type={type} />
+              </span>
+              {label}
+            </span>
+          ))}
+          <span className="row" style={{ gap: 4 }}>
+            <span className="legend-line" />
+            事实
+          </span>
+          <span className="row" style={{ gap: 4 }}>
+            <span className="legend-line dashed" />
+            待定
+          </span>
+          <span className="row" style={{ gap: 4 }}>
+            <span className="legend-line conflict" />
+            冲突
+          </span>
+        </div>
       </div>
     );
   },

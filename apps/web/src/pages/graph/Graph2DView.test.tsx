@@ -1,5 +1,5 @@
 import { createRef } from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import type { GraphEdge, GraphNode } from '../../features/schemas.js';
@@ -63,11 +63,57 @@ describe('Graph2DView', () => {
     expect(screen.getByTestId('edge-label-e1')).toHaveTextContent('USES');
   });
 
+  it('marks newly added nodes as entering', () => {
+    const { rerender } = render(
+      <Graph2DView
+        nodes={[nodes[0]!]}
+        edges={[]}
+        selected={null}
+        expanded={new Set()}
+        onSelect={vi.fn()}
+        onExpand={vi.fn()}
+        onBackgroundDoubleClick={vi.fn()}
+      />,
+    );
+
+    rerender(
+      <Graph2DView
+        nodes={nodes}
+        edges={edges}
+        selected={null}
+        expanded={new Set()}
+        onSelect={vi.fn()}
+        onExpand={vi.fn()}
+        onBackgroundDoubleClick={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId('node-b')).toHaveAttribute('data-entering', 'true');
+  });
+
+  it('shows a hint when the selected node has no relations', () => {
+    render(
+      <Graph2DView
+        nodes={nodes}
+        edges={[]}
+        selected="a"
+        expanded={new Set()}
+        onSelect={vi.fn()}
+        onExpand={vi.fn()}
+        onBackgroundDoubleClick={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId('graph2d-no-neighbor')).toHaveTextContent('该概念暂未建立关系');
+  });
+
   it('renders a dot grid and node type icon', () => {
     render(view(createRef<Graph2DViewHandle>()));
 
     expect(document.querySelector('#dot-grid')).not.toBeNull();
-    expect(screen.getByTestId('node-icon-technology')).toBeInTheDocument();
+    expect(
+      within(screen.getByTestId('graph2d-canvas')).getByTestId('node-icon-technology'),
+    ).toBeInTheDocument();
   });
 
   it('zooms with buttons and resets the viewport', async () => {

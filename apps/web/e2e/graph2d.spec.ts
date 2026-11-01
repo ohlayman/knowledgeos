@@ -96,3 +96,16 @@ test('2d search focuses a node and breadcrumb resets on blank double click', asy
   await page.mouse.dblclick(box!.x + box!.width - 24, box!.y + box!.height - 24);
   await expect(path).toHaveCount(0);
 });
+
+test('2d expansion keeps existing node positions stable', async ({ page }) => {
+  await page.goto('/graph');
+  await page.getByRole('button', { name: '平面', exact: true }).click();
+  const canvas = page.getByTestId('graph2d-canvas');
+  const node = canvas.getByTestId('node-2d-a');
+  const before = await node.getAttribute('transform');
+
+  await node.click({ force: true });
+  await page.waitForTimeout(400);
+
+  expect(await node.getAttribute('transform')).toBe(before);
+});
