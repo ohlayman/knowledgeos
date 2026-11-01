@@ -158,7 +158,7 @@ test('expanding a node does not reset the camera', async ({ page }) => {
   const root = page.locator('[data-view-mode]');
   await expect
     .poll(async () => root.getAttribute('data-camera'), { timeout: 10_000 })
-    .not.toBe('0,0,450');
+    .toBe('0,0,450');
   const before = await root.getAttribute('data-camera');
 
   await first.focus();

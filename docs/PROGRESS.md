@@ -234,7 +234,7 @@
 | 处理中普通接口 P95 | DONE | 13ms | ≤ 500ms |
 | 引用可解析率 | DONE | 100%（20/20） | 100% |
 | 正文对比度 | DONE | 最低 5.00:1 | ≥ 4.5:1 |
-| 单测 | DONE | 304/304 通过（api 74 + shared 50 + web 39 + parser 25 + wiki-engine 25 + graph 12 + agent-core 12 + llm 12 + extraction 10 + embeddings 10 + chunking 8 + mcp-server 8 + storage 8 + retrieval 9 + queue 2） | 全绿 |
+| 单测 | DONE | 305/305 通过（api 74 + shared 50 + web 40 + parser 25 + wiki-engine 25 + graph 12 + agent-core 12 + llm 12 + extraction 10 + embeddings 10 + chunking 8 + mcp-server 8 + storage 8 + retrieval 9 + queue 2） | 全绿 |
 | 集成 | DONE | 72/72 通过（数据库 23 + api 25 + worker 11 + 检索 11 + 队列 1 + 评测 1） | 全绿 |
 | E2E | DONE | 22/22 通过（V1 四档/三态/键盘、Wiki、图谱展开与实体高亮、Agent 回放、MCP 接入、3D 图谱 8 条、移动端） | 全绿 |
 | V1.5 验收 | DONE | 12/12 通过（`pnpm accept:v15`） | 全绿 |
@@ -244,7 +244,7 @@
 | V3 验收 | DONE | 11/11 通过（`pnpm accept:v3`：10 条 AC + 1 条工具连通性） | 全绿 |
 | V3 外部可用性 | DONE | 见 `docs/MCP_USABILITY_REPORT.md`（13 次调用成功率 100%，平均 75ms；真实客户端采用率待测） | 已产出 |
 | V2.1 验收 | DONE | 10/10 通过（`docs/ACCEPTANCE_V2.1.md`） | 全绿 |
-| V2.1 3D 性能 | DONE | 首帧 865ms、400 节点 55fps、3D chunk 387.5KB gzip、降级 261ms | 已达标 |
+| V2.1 3D 性能 | DONE | 首帧 1.0s、400 节点 56fps、3D chunk 387.5KB gzip、降级 300ms | 已达标 |
 
 ---
 

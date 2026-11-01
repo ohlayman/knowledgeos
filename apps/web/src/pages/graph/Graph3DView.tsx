@@ -137,8 +137,8 @@ export const Graph3DView = forwardRef<Graph3DViewHandle, Graph3DViewProps>(funct
     if (!shouldAutoFit(autoFitted.current, data.nodes.length)) {
       return;
     }
-    autoFitted.current = true;
     const fitTimer = setTimeout(() => {
+      autoFitted.current = true;
       graphRef.current?.cameraPosition({ x: 0, y: 0, z: 450 }, { x: 0, y: 0, z: 0 }, 600);
       engineStopRef.current?.();
     }, 2500);

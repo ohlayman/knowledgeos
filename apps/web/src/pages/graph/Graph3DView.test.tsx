@@ -1,7 +1,7 @@
-import { act, createRef } from 'react';
+import { act, createRef, StrictMode } from 'react';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { GraphEdge, GraphNode } from '../../features/schemas.js';
 import { ThemeProvider } from '../../lib/theme.js';
 import { Graph3DView, type Graph3DViewHandle } from './Graph3DView.js';
@@ -11,6 +11,8 @@ const graphSpies = vi.hoisted(() => ({
   d3ReheatSimulation: vi.fn(),
   pauseAnimation: vi.fn(),
   refresh: vi.fn(),
+  zoomToFit: vi.fn(),
+  camera: vi.fn(),
 }));
 
 interface MockProps {
@@ -98,6 +100,10 @@ function renderView(ref: React.RefObject<Graph3DViewHandle | null>) {
   );
 }
 
+beforeEach(() => {
+  vi.clearAllMocks();
+});
+
 describe('Graph3DView', () => {
   it('传入冻结配置并转发节点点击', async () => {
     const onSelect = vi.fn();
@@ -126,6 +132,32 @@ describe('Graph3DView', () => {
     await userEvent.click(graph);
     expect(onSelect).toHaveBeenCalledWith('a');
     expect(onExpand).toHaveBeenCalledWith(nodes[0]);
+  });
+
+  it('StrictMode 下仍会在首次布局后定位一次', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const ref = createRef<Graph3DViewHandle>();
+
+    render(
+      <StrictMode>
+        <ThemeProvider>
+          <Graph3DView
+            ref={ref}
+            nodes={nodes}
+            edges={edges}
+            selected={null}
+            onSelect={vi.fn()}
+            onExpand={vi.fn()}
+          />
+        </ThemeProvider>
+      </StrictMode>,
+    );
+
+    await screen.findByTestId('mock-force-graph');
+    act(() => vi.advanceTimersByTime(2600));
+
+    expect(graphSpies.cameraPosition).toHaveBeenCalledTimes(1);
+    vi.useRealTimers();
   });
 
   it('focusNode 调用相机，hover 更新高亮状态', async () => {
