@@ -13,11 +13,22 @@ const graphSpies = vi.hoisted(() => ({
   refresh: vi.fn(),
 }));
 
+interface MockProps {
+  graphData: { nodes: Array<{ id: string }> };
+  cooldownTicks?: number;
+  controlType?: string;
+  enableNodeDrag?: boolean;
+  onNodeClick?: (node: { id: string }) => void;
+  onNodeHover?: (node: { id: string } | null) => void;
+}
+
 vi.mock('react-force-graph-3d', async () => {
   const React = await import('react');
   return {
-    default: React.forwardRef(function Mock(props: any, ref: any) {
+    default: React.forwardRef(function Mock(props: MockProps, ref: React.ForwardedRef<unknown>) {
       React.useImperativeHandle(ref, () => graphSpies);
+      const first = props.graphData.nodes[0];
+      const second = props.graphData.nodes[1] ?? first;
       return (
         <>
           <button
@@ -26,13 +37,11 @@ vi.mock('react-force-graph-3d', async () => {
             data-cooldown={String(props.cooldownTicks)}
             data-control={String(props.controlType)}
             data-drag={String(props.enableNodeDrag)}
-            onClick={() => props.onNodeClick(props.graphData.nodes[0])}
+            onClick={() => first && props.onNodeClick?.(first)}
           >
             mock
           </button>
-          <button onMouseEnter={() => props.onNodeHover(props.graphData.nodes[1])}>
-            hover-b
-          </button>
+          <button onMouseEnter={() => second && props.onNodeHover?.(second)}>hover-b</button>
         </>
       );
     }),

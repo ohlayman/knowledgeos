@@ -76,18 +76,19 @@ test('expand a node once and jump to entity highlight', async ({ page }) => {
   await page.goto('/graph');
   await page.getByRole('button', { name: '平面', exact: true }).click();
   await page.getByLabel('搜索实体').fill(entity);
-  const result = page.getByRole('button', { name: entity }).first();
+  const result = page.getByRole('button', { name: entity, exact: true }).first();
   await expect(result).toBeVisible({ timeout: 15_000 });
   await result.click();
 
-  const node = page.getByRole('button', { name: `节点 ${entity}` });
+  const canvas = page.getByTestId('graph2d-canvas');
+  const node = canvas.getByRole('button', { name: `节点 ${entity}` });
   await expect(node).toBeVisible({ timeout: 15_000 });
-  await expect(page.getByRole('button', { name: `节点 ${neighbor}` })).toBeVisible({
+  await expect(canvas.getByRole('button', { name: `节点 ${neighbor}` })).toBeVisible({
     timeout: 15_000,
   });
   expect(neighborRequests.length).toBe(1);
 
-  await node.click();
+  await node.click({ force: true });
   await page.waitForTimeout(700);
   expect(neighborRequests.length).toBe(1);
 

@@ -12,7 +12,7 @@ export type NodeGeometry = 'sphere' | 'box' | 'tetra' | 'octa' | 'prism';
 const PALETTES: Record<'light' | 'dark', GraphPalette> = {
   light: {
     canvas: '#fbfaf7',
-    node: '#f4f1ea',
+    node: '#8c8779',
     selected: '#2c5a5f',
     link: '#9a9284',
     conflict: '#9e2b25',
@@ -20,7 +20,7 @@ const PALETTES: Record<'light' | 'dark', GraphPalette> = {
   },
   dark: {
     canvas: '#121110',
-    node: '#211e1a',
+    node: '#a49d8f',
     selected: '#6fa8a6',
     link: '#6e675a',
     conflict: '#e07a70',

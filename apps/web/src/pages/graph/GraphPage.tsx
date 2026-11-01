@@ -9,7 +9,12 @@ import {
   useGraphPending,
   useWikiEntities,
 } from '../../features/hooks.js';
-import { GraphNeighborhoodSchema, type GraphEdge, type GraphNode } from '../../features/schemas.js';
+import {
+  GraphEdgeListSchema,
+  GraphNeighborhoodSchema,
+  type GraphEdge,
+  type GraphNode,
+} from '../../features/schemas.js';
 import { apiFetch, errorMessage } from '../../lib/api-client.js';
 import { shouldAggregate, shouldHideLabels } from '../../lib/graph.js';
 import {
@@ -97,9 +102,7 @@ export function GraphPage() {
   const [webgl] = useState(() => supportsWebGL());
   const [viewMode, setViewMode] = useState<GraphViewMode>(() =>
     resolveViewMode(
-      typeof localStorage === 'undefined'
-        ? null
-        : localStorage.getItem(GRAPH_VIEW_STORAGE_KEY),
+      typeof localStorage === 'undefined' ? null : localStorage.getItem(GRAPH_VIEW_STORAGE_KEY),
       typeof window === 'undefined' ? 1440 : window.innerWidth,
       webgl,
     ),
@@ -108,7 +111,7 @@ export function GraphPage() {
   const [graphNotice, setGraphNotice] = useState<'webgl' | 'lost' | 'slow' | null>(() =>
     webgl ? null : 'webgl',
   );
-  const [camera, setCamera] = useState('0,0,620');
+  const [camera, setCamera] = useState('0,0,450');
   const [engine, setEngine] = useState<'running' | 'stopped'>('running');
   const [clusterType, setClusterType] = useState<string | null>(null);
 
@@ -119,9 +122,7 @@ export function GraphPage() {
 
   useEffect(() => {
     const onResize = () => {
-      setViewMode((current) =>
-        resolveViewMode(current, window.innerWidth, supportsWebGL()),
-      );
+      setViewMode((current) => resolveViewMode(current, window.innerWidth, supportsWebGL()));
     };
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
@@ -137,6 +138,29 @@ export function GraphPage() {
     }
     setNodes(initial);
   }, [entry.data, nodes.size]);
+
+  useEffect(() => {
+    if (!entry.data || entry.data.length === 0) {
+      return;
+    }
+    const entryIds = new Set(entry.data.map((item) => item.node.id));
+    let cancelled = false;
+    void apiFetch('/graph/relations?limit=500')
+      .then((raw) => {
+        if (cancelled) {
+          return;
+        }
+        const rows = GraphEdgeListSchema.parse(raw);
+        mergeNeighborhood({
+          nodes: [],
+          edges: rows.filter((edge) => entryIds.has(edge.fromId) && entryIds.has(edge.toId)),
+        });
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [entry.data]);
 
   const mergeNeighborhood = (payload: { nodes: GraphNode[]; edges: GraphEdge[] }) => {
     setNodes((current) => {
@@ -300,11 +324,7 @@ export function GraphPage() {
                   切到平面视图
                 </button>
               ) : null}
-              <button
-                type="button"
-                className="btn ghost sm"
-                onClick={() => setGraphNotice(null)}
-              >
+              <button type="button" className="btn ghost sm" onClick={() => setGraphNotice(null)}>
                 关闭
               </button>
             </div>
@@ -412,7 +432,9 @@ export function GraphPage() {
                 </div>
               ) : viewMode === '3d' ? (
                 <Suspense
-                  fallback={<div className="skeleton" style={{ minHeight: 620 }} aria-busy="true" />}
+                  fallback={
+                    <div className="skeleton" style={{ minHeight: 620 }} aria-busy="true" />
+                  }
                 >
                   <Graph3DView
                     ref={graph3DRef}

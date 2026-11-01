@@ -28,7 +28,8 @@
     "clean:test-data": "pnpm --filter @kos/database exec node scripts/clean-test-data.mjs",
     "accept:v3": "node scripts/acceptance-v3.mjs",
     "mcp:start": "node apps/mcp-server/dist/index.js",
-    "mcp:http": "node apps/mcp-server/dist/index.js --http --port 3344"
+    "mcp:http": "node apps/mcp-server/dist/index.js --http --port 3344",
+    "perf:graph3d": "node scripts/graph-3d-perf.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",

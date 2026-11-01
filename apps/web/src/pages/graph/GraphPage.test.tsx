@@ -30,6 +30,11 @@ vi.mock('../../features/hooks.js', () => ({
 
 vi.mock('../../lib/webgl.js', () => ({ supportsWebGL: () => true }));
 
+vi.mock('../../lib/api-client.js', () => ({
+  apiFetch: vi.fn().mockResolvedValue([]),
+  errorMessage: (error: unknown) => String(error),
+}));
+
 vi.mock('./Graph3DView.js', () => ({
   Graph3DView: forwardRef(function MockGraph3D() {
     return <div data-testid="graph3d-view" />;

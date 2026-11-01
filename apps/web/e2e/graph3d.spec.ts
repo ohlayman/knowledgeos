@@ -48,7 +48,7 @@ test('camera zoom changes position and reset restores it', async ({ page }) => {
   await expect(canvas).toBeVisible();
   await expect
     .poll(async () => root.getAttribute('data-camera'), { timeout: 10_000 })
-    .not.toBe('0,0,620');
+    .not.toBe('0,0,450');
   const before = await root.getAttribute('data-camera');
 
   const box = await canvas.boundingBox();
@@ -66,7 +66,7 @@ test('camera zoom changes position and reset restores it', async ({ page }) => {
   await page.getByRole('button', { name: '重置视图' }).click();
   await expect
     .poll(async () => root.getAttribute('data-camera'), { timeout: 10_000 })
-    .toBe('0,0,620');
+    .toBe('0,0,450');
 });
 
 test('hidden node list expands a node once', async ({ page }) => {
@@ -80,9 +80,7 @@ test('hidden node list expands a node once', async ({ page }) => {
   await page.goto('/graph');
   const list = page.getByRole('list', { name: '图谱节点列表' });
   const first = list.getByRole('button').first();
-  if ((await list.getByRole('button').count()) === 0) {
-    test.skip(true, '开发库没有可用的图谱节点');
-  }
+  await expect(first).toBeAttached({ timeout: 15_000 });
 
   await first.focus();
   await page.keyboard.press('Enter');
@@ -121,4 +119,28 @@ test('falls back when the WebGL context is lost', async ({ page }) => {
 
   await expect(page.getByTestId('graph2d-canvas')).toBeVisible();
   await expect(page.getByText('3D 上下文已丢失')).toBeVisible();
+});
+
+test('search focuses an existing node without clearing the view', async ({ page }) => {
+  const webgl = await page.evaluate(() => {
+    const canvas = document.createElement('canvas');
+    return Boolean(canvas.getContext('webgl2') ?? canvas.getContext('webgl'));
+  });
+  test.skip(!webgl, '本机 Playwright 无 WebGL');
+
+  await page.goto('/graph');
+  const first = page.getByRole('list', { name: '图谱节点列表' }).getByRole('button').first();
+  await expect(first).toBeAttached({ timeout: 15_000 });
+  const name = (await first.textContent())?.replace(/^节点\s*/, '') ?? '';
+  test.skip(!name, '开发库没有可用的图谱节点');
+
+  const root = page.locator('[data-view-mode]');
+  const before = await root.getAttribute('data-camera');
+  await page.getByLabel('搜索实体').fill(name);
+  await page.getByRole('button', { name, exact: true }).first().click();
+
+  await expect(page.getByRole('button', { name: '关闭' })).toBeVisible();
+  await expect
+    .poll(async () => root.getAttribute('data-camera'), { timeout: 10_000 })
+    .not.toBe(before);
 });
