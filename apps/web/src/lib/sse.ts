@@ -3,15 +3,36 @@ export interface SseHandlers {
   onStatus?: (data: { phase: string }) => void;
   onRetrieval?: (data: {
     traceId?: string;
+    questionType?: string;
     vectorCount: number;
     keywordCount: number;
     finalChunkIds: string[];
     degraded: string[];
+    paths?: SsePath[];
   }) => void;
   onDelta?: (text: string) => void;
   onCitations?: (data: { citations: Citation[] }) => void;
   onDone?: (data: { status: string; usage?: Record<string, unknown> }) => void;
   onError?: (data: { code: string; message: string; retryable: boolean }) => void;
+}
+
+export interface SsePath {
+  nodeNames: string[];
+  edges: Array<{
+    from: string;
+    to: string;
+    type: string;
+    confidence: number;
+    evidenceChunkIds: string[];
+  }>;
+  chunkIds: string[];
+  evidenceRefs?: Array<{ chunkId: string; documentId: string }>;
+  score: number;
+  scoreBreakdown: {
+    confidenceProduct: number;
+    sourceQuality: number;
+    weakPenalty: number;
+  };
 }
 
 export interface Citation {
@@ -59,10 +80,12 @@ export function dispatchSseFrame(frame: string, handlers: SseHandlers): void {
       handlers.onRetrieval?.(
         data as {
           traceId?: string;
+          questionType?: string;
           vectorCount: number;
           keywordCount: number;
           finalChunkIds: string[];
           degraded: string[];
+          paths?: SsePath[];
         },
       );
       return;

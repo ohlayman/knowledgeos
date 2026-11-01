@@ -44,12 +44,18 @@ importers:
       '@fastify/multipart':
         specifier: ^10.1.6
         version: 10.1.6
+      '@kos/agent-core':
+        specifier: workspace:*
+        version: link:../../packages/agent-core
       '@kos/database':
         specifier: workspace:*
         version: link:../../packages/database
       '@kos/embeddings':
         specifier: workspace:^
         version: link:../../packages/embeddings
+      '@kos/graph':
+        specifier: workspace:*
+        version: link:../../packages/graph
       '@kos/llm':
         specifier: workspace:^
         version: link:../../packages/llm
@@ -210,6 +216,19 @@ importers:
         specifier: ^2.1.9
         version: 2.1.9(@types/node@22.10.0)(jsdom@26.0.0)
 
+  packages/agent-core:
+    dependencies:
+      '@kos/shared':
+        specifier: workspace:*
+        version: link:../shared
+      zod:
+        specifier: ^3.25.76
+        version: 3.25.76
+    devDependencies:
+      vitest:
+        specifier: ^2.1.9
+        version: 2.1.9(@types/node@22.10.0)(jsdom@26.0.0)
+
   packages/chunking:
     dependencies:
       '@kos/parser':
@@ -228,6 +247,9 @@ importers:
 
   packages/database:
     dependencies:
+      '@kos/graph':
+        specifier: workspace:*
+        version: link:../graph
       '@kos/shared':
         specifier: workspace:*
         version: link:../shared
@@ -291,6 +313,16 @@ importers:
       zod:
         specifier: ^3.25.76
         version: 3.25.76
+    devDependencies:
+      vitest:
+        specifier: ^2.1.9
+        version: 2.1.9(@types/node@22.10.0)(jsdom@26.0.0)
+
+  packages/graph:
+    dependencies:
+      '@kos/shared':
+        specifier: workspace:*
+        version: link:../shared
     devDependencies:
       vitest:
         specifier: ^2.1.9

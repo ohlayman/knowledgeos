@@ -7,9 +7,9 @@
 
 ## 1. 当前结论
 
-- **当前阶段：** V1.5（LLM Wiki 与受控更新）完成：抽取、编译、归属判定、冲突、提案审核、版本回滚、过期提醒与双向链接均已实现；12 条验收全部通过。
-- **当前版本：** V1.5。
-- **下一步：** 接入真实模型复测提案质量；V2 图谱与 Agent 需单独确认后启动。
+- **当前阶段：** V2（知识图谱与 Agent Studio）完成：入图门槛、邻域/路径查询、第三路检索、图谱 UI、Agent 运行时/工具白名单/预算、执行回放均已实现；12 条验收全部通过。
+- **当前版本：** V2。
+- **下一步：** 接入真实模型复测图谱类型准确率与 Agent 质量；V3 MCP Server 需单独确认后启动。
 - **环境说明：** 本机原生 PostgreSQL 占用 5432，compose 的 Postgres 映射到宿主 5433；`.env.example` 已同步。
 - **集成测试：** Turbo 2 默认 strict 环境透传，跑真实依赖需 `RUN_DB_INTEGRATION=1 pnpm test -- --env-mode=loose`。
 - **阻塞：** 无。
@@ -22,7 +22,7 @@
 | --- | --- | --- | --- | --- | --- |
 | V1 | DONE | DONE | DONE | DONE | DONE（M0–M8，发布待确认） |
 | V1.5 | DONE | DONE（扩展章节） | DONE（预留表） | DONE（里程碑） | DONE（12/12 验收） |
-| V2 | DONE | DONE（扩展章节） | DONE（预留表） | DONE（里程碑） | BLOCKED（等 V1.5） |
+| V2 | DONE | DONE（扩展章节） | DONE（预留表） | DONE（里程碑） | DONE（12/12 验收） |
 | V3 | DONE | DONE（扩展章节） | DONE（预留表） | DONE（里程碑） | BLOCKED（等 V1 检索质量） |
 
 **说明：** 技术设计、数据库设计、实现计划采用「一套主文档 + 版本扩展」的组织方式，不按版本拆成 12 份，避免重复内容与维护分叉。
@@ -179,6 +179,19 @@
 | V15-M9 Wiki 前端 | DONE | 2026-11-01 | 页面树/阅读/编辑/历史/审核/冲突；导航待办徽标；E2E 2 条 |
 | V15-M10 12 条验收 + 提案质量报告 | DONE | 2026-11-01 | `accept:v15` 12/12；`docs/WIKI_QUALITY_REPORT.md` |
 
+### V2 任务看板
+
+| 任务 | 状态 | 完成 | 证据 |
+| --- | --- | --- | --- |
+| V2-M1 关系入图门槛、待定区、去噪 | DONE | 2026-11-01 | 低置信度/单次 RELATED_TO 入待定区；确认后转 human；`extraction.integration.test.ts` |
+| V2-M2 邻域（≤3 跳）、路径查询、边证据 | DONE | 2026-11-01 | `@kos/graph` + `PrismaGraphStore`；2 条集成测试 |
+| V2-M3 路径评分、第三路检索、RRF 融合 | DONE | 2026-11-01 | `scorePath` 5 条测试；检索集成测试出现 `trace.paths` |
+| V2-M4 图谱 UI：两跳聚焦、按需展开、400 聚合、列表退路 | DONE | 2026-11-01 | `/graph`；E2E 展开去重、移动端列表；`lib/graph.test.ts` |
+| V2-M5 Agent 运行时：工具、白名单、步数/预算、失败恢复 | DONE | 2026-11-01 | `@kos/agent-core` 9 条运行时测试；6 个工具 |
+| V2-M6 执行记录：调用链、脱敏、不可编辑 | DONE | 2026-11-01 | RunStep/ToolCall 持久化；`redactParams` 测试；回放 UI |
+| V2-M7 Agent UI：配置、试运行、执行记录 | DONE | 2026-11-01 | `/agents`、`/agents/:id`、`/agents/runs/:runId`；E2E |
+| V2-M8 12 条验收 + 图谱质量报告 | DONE | 2026-11-01 | `accept:v2` 12/12；`docs/GRAPH_QUALITY_REPORT.md` |
+
 ---
 
 ## 4. 质量门禁
@@ -193,11 +206,13 @@
 | 处理中普通接口 P95 | DONE | 13ms | ≤ 500ms |
 | 引用可解析率 | DONE | 100%（20/20） | 100% |
 | 正文对比度 | DONE | 最低 5.00:1 | ≥ 4.5:1 |
-| 单测 | DONE | 223/223 通过（api 60 + shared 40 + parser 25 + wiki-engine 25 + web 16 + llm 12 + extraction 10 + embeddings 10 + chunking 8 + storage 8 + retrieval 7 + queue 2） | 全绿 |
-| 集成 | DONE | 65/65 通过（数据库 17 + api 25 + worker 11 + 检索 10 + 队列 1 + 评测 1） | 全绿 |
-| E2E | DONE | 9/9 通过（四档宽度、三态、键盘全流程、导入→阅读→问答→引用→任务→主题、移动端导航、Wiki 创建/编辑/历史、审核与冲突页） | 全绿 |
+| 单测 | DONE | 255/255 通过（api 64 + shared 40 + parser 25 + wiki-engine 25 + web 18 + graph 12 + agent-core 12 + llm 12 + extraction 10 + embeddings 10 + chunking 8 + storage 8 + retrieval 9 + queue 2） | 全绿 |
+| 集成 | DONE | 71/71 通过（数据库 22 + api 25 + worker 11 + 检索 11 + 队列 1 + 评测 1） | 全绿 |
+| E2E | DONE | 12/12 通过（V1 四档/三态/键盘、Wiki、图谱展开与实体高亮、Agent 回放、移动端） | 全绿 |
 | V1.5 验收 | DONE | 12/12 通过（`pnpm accept:v15`） | 全绿 |
-| V1.5 提案质量 | DONE | 见 `docs/WIKI_QUALITY_REPORT.md`（样本 199 条：接受率 77.8%、平均审核 0.5 分钟） | 已产出 |
+| V1.5 提案质量 | DONE | 见 `docs/WIKI_QUALITY_REPORT.md`（样本 183 条：接受率 83.3%、平均审核 0.7 分钟） | 已产出 |
+| V2 验收 | DONE | 12/12 通过（`pnpm accept:v2`） | 全绿 |
+| V2 图谱质量 | DONE | 见 `docs/GRAPH_QUALITY_REPORT.md`（样本 199 条，证据可解析率 100%，人工确认 3%） | 已产出 |
 
 ---
 
@@ -226,3 +241,4 @@
 | 2026-11-01 | M8-T1~T4 完成：PRD 22.1 22/22 验收、性能与安全报告；修复重导入 500、提示注入逃逸、抽屉键盘焦点、批量异常中断；单测 180、集成 53、E2E 7 |
 | 2026-11-01 | M8-T5 待确认：版本号、CHANGELOG、tag 与 GitHub Release |
 | 2026-11-01 | V1.5 完成：抽取、编译、归属、冲突、提案、审核 API、版本/回滚/过期、双链与 Wiki 前端；`accept:v15` 12/12；提案质量报告产出 |
+| 2026-11-01 | V2 完成：入图门槛、图查询与第三路检索、图谱 UI、Agent 运行时/工具/预算、执行回放；`accept:v2` 12/12；图谱质量报告产出 |

@@ -22,7 +22,7 @@ test.afterAll(async ({ request }) => {
 
 test('create, read and edit a wiki page', async ({ page }) => {
   await page.goto('/wiki');
-  await expect(page.getByRole('heading', { name: 'Wiki' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Wiki', exact: true })).toBeVisible();
 
   await page.getByLabel('新建页面标题').fill(title);
   await page.getByRole('button', { name: '新建页面' }).click();

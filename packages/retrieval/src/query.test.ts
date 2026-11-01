@@ -7,6 +7,10 @@ describe('detectQuestionType', () => {
     expect(detectQuestionType('skill vs MCP server')).toBe('comparison');
   });
 
+  it('识别关系型问题', () => {
+    expect(detectQuestionType('Qdrant 和 稀疏向量 是什么关系')).toBe('relation');
+  });
+
   it('识别操作型问题', () => {
     expect(detectQuestionType('如何配置 Qdrant 集合')).toBe('procedure');
   });
@@ -20,6 +24,10 @@ describe('detectQuestionType', () => {
 describe('extractEntities', () => {
   it('按连接词拆分两个实体', () => {
     expect(extractEntities('Redis 和 Qdrant 有什么区别')).toEqual(['Redis', 'Qdrant']);
+  });
+
+  it('关系型问题去掉实体后的“是/什么关系”', () => {
+    expect(extractEntities('Qdrant 和 稀疏向量 是什么关系')).toEqual(['Qdrant', '稀疏向量']);
   });
 
   it('优先使用引号内术语', () => {

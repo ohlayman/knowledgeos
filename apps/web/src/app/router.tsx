@@ -7,6 +7,10 @@ import { LibraryPage } from '../pages/library/LibraryPage.js';
 import { NotFoundPage } from '../pages/NotFoundPage.js';
 import { ResearchPage } from '../pages/research/ResearchPage.js';
 import { SettingsPage } from '../pages/settings/SettingsPage.js';
+import { AgentsPage } from '../pages/agents/AgentsPage.js';
+import { AgentDetailPage } from '../pages/agents/AgentDetailPage.js';
+import { AgentRunPage } from '../pages/agents/AgentRunPage.js';
+import { GraphPage } from '../pages/graph/GraphPage.js';
 import { WikiConflictsPage } from '../pages/wiki/WikiConflictsPage.js';
 import { WikiEditPage } from '../pages/wiki/WikiEditPage.js';
 import { WikiHistoryPage } from '../pages/wiki/WikiHistoryPage.js';
@@ -24,6 +28,10 @@ export function AppRouter() {
           <Route path="library" element={<LibraryPage />} />
           <Route path="documents/:id" element={<DocumentPage />} />
           <Route path="research/:id?" element={<ResearchPage />} />
+          <Route path="graph" element={<GraphPage />} />
+          <Route path="agents" element={<AgentsPage />} />
+          <Route path="agents/runs/:runId" element={<AgentRunPage />} />
+          <Route path="agents/:id" element={<AgentDetailPage />} />
           <Route path="wiki" element={<WikiListPage />} />
           <Route path="wiki/review" element={<WikiReviewPage />} />
           <Route path="wiki/review/:id" element={<WikiProposalPage />} />

@@ -37,7 +37,19 @@ const NAV: NavItem[] = [
   },
   { to: '/library', label: '知识库', icon: <Icon path="M4 5h16v4H4zM4 12h16v7H4z" /> },
   { to: '/research', label: '问答', icon: <Icon path="M4 5h16v11H8l-4 4z" /> },
+  {
+    to: '/agents',
+    label: 'Agent',
+    icon: <Icon path="M8 8h8v8H8zM12 3v3m0 10v3M3 12h3m12 0h3M9 12h.01M15 12h.01" />,
+  },
   { to: '/wiki', label: 'Wiki', icon: <Icon path="M4 4h16v16H4zM4 9h16M9 9v11" /> },
+  {
+    to: '/graph',
+    label: '图谱',
+    icon: (
+      <Icon path="M12 4a3 3 0 100 6 3 3 0 000-6zM5 15a3 3 0 100 6 3 3 0 000-6zm14 0a3 3 0 100 6 3 3 0 000-6zM12 10v5m-5.5 2.5L10 14m9 3.5L14 14" />
+    ),
+  },
   { to: '/jobs', label: '任务', icon: <Icon path="M5 7h14M5 12h14M5 17h9" /> },
   {
     to: '/settings',

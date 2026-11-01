@@ -81,7 +81,17 @@ test.afterAll(async ({ request }) => {
 });
 
 test('390/768/1024/1440 四档均无横向滚动', async ({ page }) => {
-  const routes = ['/', '/library', `/documents/${seededId}`, '/research', '/jobs', '/settings'];
+  const routes = [
+    '/',
+    '/library',
+    `/documents/${seededId}`,
+    '/research',
+    '/graph',
+    '/agents',
+    '/wiki',
+    '/jobs',
+    '/settings',
+  ];
 
   for (const width of [390, 768, 1024, 1440]) {
     await page.setViewportSize({ width, height: 900 });

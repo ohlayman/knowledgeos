@@ -13,20 +13,28 @@ describe.skipIf(!enabled)('ExtractionRepository', () => {
   let documentId = '';
   let versionId = '';
   let chunkId = '';
+  const documentIds: string[] = [];
+  const chunkIds: string[] = [];
   const term = (name: string) => `${name}-${suffix.slice(0, 6)}`;
   const text = `${term('混合检索')} 使用 ${term('Hybrid Retrieval')} 的思路。`;
 
   const repo = new ExtractionRepository(prisma);
 
   afterAll(async () => {
-    if (chunkId) {
-      await prisma.entity.deleteMany({ where: { sourceChunkIds: { has: chunkId } } });
-      await prisma.extractionCache.deleteMany({ where: { chunkId } });
+    const chunksToClean = [chunkId, ...chunkIds].filter(Boolean);
+    if (chunksToClean.length > 0) {
+      await prisma.entity.deleteMany({
+        where: { OR: chunksToClean.map((id) => ({ sourceChunkIds: { has: id } })) },
+      });
+      await prisma.extractionCache.deleteMany({ where: { chunkId: { in: chunksToClean } } });
     }
-    if (documentId) {
-      await prisma.document.deleteMany({ where: { id: documentId } });
+    const documentsToClean = [documentId, ...documentIds].filter(Boolean);
+    if (documentsToClean.length > 0) {
+      await prisma.document.deleteMany({ where: { id: { in: documentsToClean } } });
     }
-    await prisma.source.deleteMany({ where: { fingerprint } });
+    await prisma.source.deleteMany({
+      where: { fingerprint: { in: [fingerprint, `${fingerprint}-gate`] } },
+    });
     await prisma.$disconnect();
   });
 
@@ -125,6 +133,87 @@ describe.skipIf(!enabled)('ExtractionRepository', () => {
     const factCount = await prisma.fact.count({ where: { evidenceChunkId: chunkId } });
     expect(relationCount).toBe(1);
     expect(factCount).toBe(1);
+  });
+
+  it('keeps weak and single-extraction relations pending until confirmed by repetition', async () => {
+    const documents = new DocumentRepository(prisma);
+    const created = await documents.createWithVersion({
+      title: `graph-gate-${suffix}`,
+      source: { type: 'manual', fingerprint: `${fingerprint}-gate`, identifier: 'gate' },
+      version: { contentHash: `gate-${suffix}` },
+    });
+    documentIds.push(created.documentId);
+
+    const textA = `${term('甲')} 与 ${term('乙')} 存在关联。`;
+    const textB = `${term('甲')} 与 ${term('乙')} 再次出现。`;
+    const chunks = new ChunkRepository(prisma);
+    await chunks.replaceForVersion(created.documentId, created.versionId, [
+      {
+        chunkIndex: 0,
+        text: textA,
+        tokenCount: 10,
+        startOffset: 0,
+        endOffset: textA.length,
+        searchText: '甲 乙',
+      },
+      {
+        chunkIndex: 1,
+        text: textB,
+        tokenCount: 10,
+        startOffset: textA.length + 1,
+        endOffset: textA.length + 1 + textB.length,
+        searchText: '甲 乙',
+      },
+    ]);
+    const [firstChunk, secondChunk] = await chunks.listByVersion(created.versionId);
+    chunkIds.push(firstChunk!.id, secondChunk!.id);
+
+    const payload = {
+      entities: [
+        { name: term('甲'), type: 'concept' as const, aliases: [] },
+        { name: term('乙'), type: 'concept' as const, aliases: [] },
+      ],
+      relations: [
+        {
+          from: term('甲'),
+          to: term('乙'),
+          type: 'RELATED_TO' as const,
+          confidence: 0.9,
+        },
+      ],
+      facts: [],
+    };
+
+    await repo.persistExtraction({ chunkId: firstChunk!.id, result: payload });
+    let relation = await prisma.relation.findFirst({
+      where: { fromEntity: { canonicalName: term('甲') }, toEntity: { canonicalName: term('乙') } },
+    });
+    expect(relation?.status).toBe('pending');
+
+    await repo.persistExtraction({ chunkId: secondChunk!.id, result: payload });
+    relation = await prisma.relation.findFirst({
+      where: { fromEntity: { canonicalName: term('甲') }, toEntity: { canonicalName: term('乙') } },
+    });
+    expect(relation?.status).toBe('active');
+    expect(relation?.evidenceChunkIds).toHaveLength(2);
+
+    const lowConfidence = await repo.persistExtraction({
+      chunkId: firstChunk!.id,
+      result: {
+        entities: payload.entities,
+        relations: [{ from: term('甲'), to: term('乙'), type: 'USES', confidence: 0.4 }],
+        facts: [],
+      },
+    });
+    const weak = await prisma.relation.findFirst({
+      where: {
+        type: 'USES',
+        fromEntity: { canonicalName: term('甲') },
+        toEntity: { canonicalName: term('乙') },
+      },
+    });
+    expect(weak?.status).toBe('pending');
+    expect(lowConfidence.relations).toBe(0);
   });
 
   it('caches extraction results per chunk, model and prompt version', async () => {

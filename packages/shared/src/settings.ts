@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 export const SETTING_KEY_PATTERN =
-  /^(retrieval|chunking|processing|answering|privacy)\.[A-Za-z0-9_.]+$/;
+  /^(retrieval|chunking|processing|answering|privacy|extraction|agent)\.[A-Za-z0-9_.]+$/;
 
 export const SettingValueSchema = z.union([z.number(), z.boolean(), z.string().max(500)]);
 

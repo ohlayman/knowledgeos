@@ -33,6 +33,8 @@ function fakeDeps(wiki: Record<string, unknown>): AppDeps {
     maintenance: {} as AppDeps['maintenance'],
     urlFetcher: { fetch: vi.fn() },
     wiki: wiki as unknown as AppDeps['wiki'],
+    graph: {} as AppDeps['graph'],
+    agents: {} as AppDeps['agents'],
   };
 }
 

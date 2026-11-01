@@ -209,6 +209,8 @@ curl -OJ http://127.0.0.1:3000/api/v1/export
 | `pnpm accept:v1` | PRD 22.1 导入/判重/检索/引用验收（需 API 与 worker 运行） |
 | `pnpm accept:v15` | V1.5 Wiki 12 条验收（抽取/提案/冲突/回滚/双链） |
 | `pnpm report:wiki` | 生成 `docs/WIKI_QUALITY_REPORT.md`（提案质量） |
+| `pnpm accept:v2` | V2 图谱与 Agent 12 条验收 |
+| `pnpm report:graph` | 生成 `docs/GRAPH_QUALITY_REPORT.md`（图谱质量） |
 | `pnpm bench:v1` | 接口、检索、首 token 与处理耗时压测 |
 | `pnpm check:contrast` | 校验深浅主题正文对比度 ≥ 4.5:1 |
 | `pnpm --filter @kos/web exec playwright test` | 端到端测试 |

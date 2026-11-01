@@ -7,12 +7,15 @@ export type { RetrievalServiceDeps } from './service.js';
 export type {
   ChunkRow,
   Evidence,
+  GraphPort,
   QueryUnderstanding,
   QueryUnderstandingResult,
   QuestionType,
   RerankCandidate,
   RerankProvider,
   RetrievalOptions,
+  RetrievalPath,
+  RetrievalPathEdge,
   RetrievalResult,
   RetrievalTrace,
 } from './types.js';

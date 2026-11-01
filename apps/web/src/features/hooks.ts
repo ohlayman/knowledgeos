@@ -19,6 +19,17 @@ import {
   WikiProposalListSchema,
   WikiProposalSchema,
   WikiReviewTaskListSchema,
+  GraphEntrySchema,
+  GraphNeighborhoodSchema,
+  GraphEdgeListSchema,
+  EntityMentionListSchema,
+  AgentListSchema,
+  AgentDetailSchema,
+  AgentRunListSchema,
+  AgentRunDetailSchema,
+  AgentUsageSchema,
+  AgentEstimateSchema,
+  AgentToolListSchema,
 } from './schemas.js';
 
 function visibleInterval(ms: number) {
@@ -545,6 +556,171 @@ export function useTriggerExtraction() {
       }),
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: ['wiki-proposals'] });
+    },
+  });
+}
+
+export function useGraphEntry() {
+  return useQuery({
+    queryKey: ['graph-entry'],
+    queryFn: async () => GraphEntrySchema.parse(await apiFetch('/graph/entry?limit=20')),
+  });
+}
+
+export function useGraphNeighborhood(entityId: string | undefined, hops = 1, enabled = true) {
+  return useQuery({
+    queryKey: ['graph-neighbors', entityId, hops],
+    enabled: Boolean(entityId) && enabled,
+    queryFn: async () =>
+      GraphNeighborhoodSchema.parse(
+        await apiFetch(`/graph/entities/${entityId}/neighbors?hops=${hops}`),
+      ),
+  });
+}
+
+export function useEntityMentions(entityId: string | undefined) {
+  return useQuery({
+    queryKey: ['entity-mentions', entityId],
+    enabled: Boolean(entityId),
+    queryFn: async () =>
+      EntityMentionListSchema.parse(await apiFetch(`/entities/${entityId}/mentions`)),
+  });
+}
+
+export function useGraphPending() {
+  return useQuery({
+    queryKey: ['graph-pending'],
+    queryFn: async () => GraphEdgeListSchema.parse(await apiFetch('/graph/pending')),
+  });
+}
+
+export function useConfirmRelation() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) =>
+      apiFetch(`/graph/relations/${id}/confirm`, { method: 'POST' }),
+    onSuccess: () => client.invalidateQueries({ queryKey: ['graph-neighbors'] }),
+  });
+}
+
+export function useAgents() {
+  return useQuery({
+    queryKey: ['agents'],
+    queryFn: async () => AgentListSchema.parse(await apiFetch('/agents')),
+  });
+}
+
+export function useAgent(id: string | undefined) {
+  return useQuery({
+    queryKey: ['agent', id],
+    enabled: Boolean(id),
+    queryFn: async () => AgentDetailSchema.parse(await apiFetch(`/agents/${id}`)),
+  });
+}
+
+export function useAgentRuns(agentId: string | undefined) {
+  return useQuery({
+    queryKey: ['agent-runs', agentId],
+    enabled: Boolean(agentId),
+    queryFn: async () => AgentRunListSchema.parse(await apiFetch(`/agents/${agentId}/runs`)),
+    refetchInterval: 3000,
+  });
+}
+
+export function useAgentRun(runId: string | undefined) {
+  return useQuery({
+    queryKey: ['agent-run', runId],
+    enabled: Boolean(runId),
+    queryFn: async () => AgentRunDetailSchema.parse(await apiFetch(`/agent-runs/${runId}`)),
+    refetchInterval: (query) => {
+      const status = query.state.data?.status;
+      return status === 'queued' || status === 'running' ? 1500 : false;
+    },
+  });
+}
+
+export function useAgentUsage() {
+  return useQuery({
+    queryKey: ['agent-usage'],
+    queryFn: async () => AgentUsageSchema.parse(await apiFetch('/agents/usage')),
+    refetchInterval: 15_000,
+  });
+}
+
+export function useAgentEstimate(agentId: string | undefined) {
+  return useQuery({
+    queryKey: ['agent-estimate', agentId],
+    enabled: Boolean(agentId),
+    queryFn: async () => AgentEstimateSchema.parse(await apiFetch(`/agents/${agentId}/estimate`)),
+  });
+}
+
+export function useAgentTools() {
+  return useQuery({
+    queryKey: ['agent-tools'],
+    queryFn: async () => AgentToolListSchema.parse(await apiFetch('/agents/tools')),
+  });
+}
+
+export function useCreateAgent() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: Record<string, unknown>) =>
+      apiFetch('/agents', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(input),
+      }),
+    onSuccess: () => client.invalidateQueries({ queryKey: ['agents'] }),
+  });
+}
+
+export function useUpdateAgent(id: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: Record<string, unknown>) =>
+      apiFetch(`/agents/${id}`, {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(input),
+      }),
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: ['agent', id] });
+      void client.invalidateQueries({ queryKey: ['agents'] });
+    },
+  });
+}
+
+export function useTriggerAgent(agentId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: string) =>
+      apiFetch(`/agents/${agentId}/runs`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ input }),
+      }),
+    onSuccess: () => client.invalidateQueries({ queryKey: ['agent-runs', agentId] }),
+  });
+}
+
+export function useCancelAgentRun() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (runId: string) =>
+      apiFetch(`/agent-runs/${runId}/cancel`, { method: 'POST' }),
+    onSuccess: () => client.invalidateQueries({ queryKey: ['agent-run'] }),
+  });
+}
+
+export function useDeleteAgentRun() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (runId: string) => apiFetch(`/agent-runs/${runId}`, { method: 'DELETE' }),
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: ['agent-run'] });
+      void client.invalidateQueries({ queryKey: ['agent-runs'] });
+      void client.invalidateQueries({ queryKey: ['agent-usage'] });
     },
   });
 }

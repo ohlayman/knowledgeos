@@ -59,6 +59,8 @@ function fakeDeps(): AppDeps {
       fetch: vi.fn(),
     } as unknown as AppDeps['urlFetcher'],
     wiki: {} as AppDeps['wiki'],
+    graph: {} as AppDeps['graph'],
+    agents: {} as AppDeps['agents'],
   };
 }
 

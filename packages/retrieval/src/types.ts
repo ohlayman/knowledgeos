@@ -1,4 +1,4 @@
-export type QuestionType = 'fact' | 'comparison' | 'procedure' | 'open';
+export type QuestionType = 'fact' | 'comparison' | 'relation' | 'procedure' | 'open';
 
 export interface QueryUnderstandingResult {
   rewrittenQuery: string;
@@ -48,6 +48,31 @@ export interface Evidence {
   headingPath: string[];
 }
 
+export interface RetrievalPathEdge {
+  from: string;
+  to: string;
+  type: string;
+  confidence: number;
+  evidenceChunkIds: string[];
+}
+
+export interface RetrievalPath {
+  nodeNames: string[];
+  edges: RetrievalPathEdge[];
+  chunkIds: string[];
+  evidenceRefs?: Array<{ chunkId: string; documentId: string }>;
+  score: number;
+  scoreBreakdown: {
+    confidenceProduct: number;
+    sourceQuality: number;
+    weakPenalty: number;
+  };
+}
+
+export interface GraphPort {
+  searchPaths(entities: string[], maxHops?: number): Promise<RetrievalPath[]>;
+}
+
 export interface RetrievalTrace {
   rewrittenQuery: string;
   questionType: QuestionType;
@@ -60,6 +85,8 @@ export interface RetrievalTrace {
   degraded: string[];
   durationMs: number;
   timings: Record<string, number>;
+  graphHits?: number;
+  paths?: RetrievalPath[];
 }
 
 export interface RetrievalResult {

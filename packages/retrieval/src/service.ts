@@ -8,10 +8,12 @@ import { keywordSearch } from './keyword.js';
 import { RuleBasedQueryUnderstanding } from './query.js';
 import type {
   ChunkRow,
+  GraphPort,
   QueryUnderstanding,
   RerankCandidate,
   RerankProvider,
   RetrievalOptions,
+  RetrievalPath,
   RetrievalResult,
   RetrievalTrace,
 } from './types.js';
@@ -22,6 +24,7 @@ export interface RetrievalServiceDeps {
   qdrant: QdrantStore;
   understander?: QueryUnderstanding;
   reranker?: RerankProvider;
+  graph?: GraphPort;
 }
 
 const DEFAULT_VECTOR_TOP_N = 40;
@@ -98,9 +101,11 @@ export class RetrievalService {
     const chunks = new Map<string, ChunkRow>();
     const vectorLists: Array<Array<{ id: string }>> = [];
     const keywordLists: Array<Array<{ id: string }>> = [];
+    const graphPromise = this.graphPaths(understanding, degraded);
     let vectorHits = 0;
     let keywordHits = 0;
     let maxVectorScore = 0;
+    let graphHits = 0;
 
     const searchStart = Date.now();
     for (const subQuery of subQueries) {
@@ -124,16 +129,73 @@ export class RetrievalService {
     }
     timings.search = Date.now() - searchStart;
 
+    const graphPaths = await graphPromise;
+    const graphLists: Array<Array<{ id: string }>> = graphPaths.map((path) =>
+      path.chunkIds.map((id) => ({ id })),
+    );
+    const graphChunkIds = [...new Set(graphPaths.flatMap((path) => path.chunkIds))];
+    graphHits = graphChunkIds.length;
+
+    if (graphChunkIds.length > 0) {
+      const missing = graphChunkIds.filter((id) => !chunks.has(id));
+      if (missing.length > 0) {
+        const rows = await this.deps.prisma.chunk.findMany({
+          where: { id: { in: missing } },
+          select: {
+            id: true,
+            documentId: true,
+            versionId: true,
+            text: true,
+            headingPath: true,
+            pageStart: true,
+            pageEnd: true,
+            tokenCount: true,
+          },
+        });
+        for (const row of rows) {
+          chunks.set(
+            row.id,
+            toChunkRow(
+              {
+                id: row.id,
+                documentId: row.documentId,
+                versionId: row.versionId,
+                text: row.text,
+                headingPath: row.headingPath,
+                pageStart: row.pageStart,
+                pageEnd: row.pageEnd,
+                tokenCount: row.tokenCount,
+              },
+              {},
+            ),
+          );
+        }
+      }
+    }
+
+    if (graphPaths.length > 0) {
+      for (const path of graphPaths) {
+        path.evidenceRefs = path.chunkIds.flatMap((chunkId) => {
+          const chunk = chunks.get(chunkId);
+          return chunk ? [{ chunkId, documentId: chunk.documentId }] : [];
+        });
+      }
+    }
+
     if (
       vectorLists.every((list) => list.length === 0) &&
-      keywordLists.every((list) => list.length === 0)
+      keywordLists.every((list) => list.length === 0) &&
+      graphLists.every((list) => list.length === 0)
     ) {
       if (degraded.includes('vector_unavailable') && degraded.includes('keyword_unavailable')) {
         throw new Error('both retrieval paths failed');
       }
     }
 
-    const fused = rrf([...vectorLists, ...keywordLists], options.rrfK ?? DEFAULT_RRF_K);
+    const fused = rrf(
+      [...vectorLists, ...keywordLists, ...graphLists],
+      options.rrfK ?? DEFAULT_RRF_K,
+    );
 
     let ordered = fused.map((item) => ({ id: item.id, score: item.score }));
     let reranked = false;
@@ -206,6 +268,8 @@ export class RetrievalService {
       degraded,
       durationMs: Date.now() - startedAt,
       timings,
+      ...(graphHits > 0 ? { graphHits } : {}),
+      ...(graphPaths.length > 0 ? { paths: graphPaths } : {}),
     };
 
     const runId = await this.persistRun(question, options, trace, fused, evidence, degraded);
@@ -216,6 +280,31 @@ export class RetrievalService {
       noEvidence,
       trace,
     };
+  }
+
+  private async graphPaths(
+    understanding: { questionType: string; entities: string[] },
+    degraded: string[],
+  ): Promise<RetrievalPath[]> {
+    if (!this.deps.graph) {
+      return [];
+    }
+    if (
+      (understanding.questionType !== 'relation' && understanding.questionType !== 'comparison') ||
+      understanding.entities.length < 2
+    ) {
+      return [];
+    }
+
+    try {
+      return await withTimeout(
+        this.deps.graph.searchPaths(understanding.entities.slice(0, 3), 3),
+        900,
+      );
+    } catch {
+      degraded.push('graph_unavailable');
+      return [];
+    }
   }
 
   private async safeVectorSearch(

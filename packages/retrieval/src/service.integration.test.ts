@@ -286,4 +286,46 @@ describe.skipIf(!enabled)('RetrievalService', () => {
       baseline.evidence.map((item) => item.chunkId),
     );
   });
+
+  it('fuses graph paths as a third retrieval path for relation questions', async () => {
+    const graphChunkId = sparse.chunkIds[0]!;
+    const graphService = new RetrievalService({
+      prisma,
+      embeddings,
+      qdrant,
+      graph: {
+        searchPaths: async () => [
+          {
+            nodeNames: ['Qdrant', '稀疏向量', '混合检索'],
+            edges: [
+              {
+                from: 'Qdrant',
+                to: '稀疏向量',
+                type: 'USES',
+                confidence: 0.9,
+                evidenceChunkIds: [graphChunkId],
+              },
+            ],
+            chunkIds: [graphChunkId],
+            score: 0.8,
+            scoreBreakdown: { confidenceProduct: 0.9, sourceQuality: 1, weakPenalty: 1 },
+          },
+        ],
+      },
+    });
+
+    const relation = await graphService.retrieve('Qdrant 和 混合检索是什么关系', {
+      rerankEnabled: false,
+    });
+    if (relation.runId) runIds.push(relation.runId);
+
+    expect(relation.trace.questionType).toBe('relation');
+    expect(relation.trace.paths).toHaveLength(1);
+    expect(relation.trace.graphHits).toBeGreaterThan(0);
+    expect(relation.evidence.some((item) => item.chunkId === graphChunkId)).toBe(true);
+
+    const fact = await graphService.retrieve('Qdrant 是什么', { rerankEnabled: false });
+    if (fact.runId) runIds.push(fact.runId);
+    expect(fact.trace.paths).toBeUndefined();
+  });
 });

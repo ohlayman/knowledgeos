@@ -31,6 +31,7 @@ export interface ExtractionPayloadInput {
 export interface PersistExtractionInput {
   chunkId: string;
   result: ExtractionPayloadInput;
+  minRelationConfidence?: number;
 }
 
 export interface PersistExtractionResult {
@@ -204,18 +205,43 @@ export class ExtractionRepository {
         }
 
         const duplicate = await tx.relation.findFirst({
-          where: { fromEntityId: fromId, toEntityId: toId, type: relation.type, status: 'active' },
-          select: { id: true, evidenceChunkIds: true },
+          where: {
+            fromEntityId: fromId,
+            toEntityId: toId,
+            type: relation.type,
+            status: { in: ['active', 'pending'] },
+          },
+          select: { id: true, evidenceChunkIds: true, status: true },
         });
         if (duplicate) {
-          if (!duplicate.evidenceChunkIds.includes(input.chunkId)) {
+          const evidenceChunkIds = duplicate.evidenceChunkIds.includes(input.chunkId)
+            ? duplicate.evidenceChunkIds
+            : [...duplicate.evidenceChunkIds, input.chunkId];
+          const promote =
+            duplicate.status === 'pending' &&
+            relation.type === 'RELATED_TO' &&
+            evidenceChunkIds.length >= 2;
+          if (evidenceChunkIds.length !== duplicate.evidenceChunkIds.length || promote) {
             await tx.relation.update({
               where: { id: duplicate.id },
-              data: { evidenceChunkIds: [...duplicate.evidenceChunkIds, input.chunkId] },
+              data: {
+                evidenceChunkIds,
+                ...(promote ? { status: 'active' as const } : {}),
+              },
             });
           }
           continue;
         }
+
+        const confidence = relation.confidence ?? 0.5;
+        const minConfidence = input.minRelationConfidence ?? 0.6;
+        const weakSingleExtraction =
+          relation.type === 'RELATED_TO' && relation.confidence !== undefined;
+        const modelConflict = relation.type === 'CONFLICTS_WITH';
+        const status =
+          confidence < minConfidence || weakSingleExtraction || modelConflict
+            ? ('pending' as const)
+            : ('active' as const);
 
         await tx.relation.create({
           data: {
@@ -224,10 +250,13 @@ export class ExtractionRepository {
             toEntityId: toId,
             type: relation.type,
             evidenceChunkIds: [input.chunkId],
-            confidence: relation.confidence ?? 0.5,
+            confidence,
+            status,
           },
         });
-        relations += 1;
+        if (status === 'active') {
+          relations += 1;
+        }
       }
 
       let facts = 0;

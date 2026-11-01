@@ -12,13 +12,14 @@ import {
 import type { Citation, Message } from '../../features/schemas.js';
 import { errorMessage } from '../../lib/api-client.js';
 import { formatRelative } from '../../lib/format.js';
-import { streamAnswer } from '../../lib/sse.js';
+import { streamAnswer, type SsePath } from '../../lib/sse.js';
 
 interface LiveAnswer {
   content: string;
   phase: 'retrieving' | 'generating' | 'done' | 'no_evidence' | 'error' | 'stopped';
   citations: Citation[];
   degraded: string[];
+  paths: SsePath[];
   error?: string;
   userText: string;
 }
@@ -81,6 +82,7 @@ export function ResearchPage() {
       phase: 'retrieving',
       citations: [],
       degraded: [],
+      paths: [],
       userText: content,
     });
 
@@ -99,7 +101,9 @@ export function ResearchPage() {
                 : current,
             ),
           onRetrieval: (data) =>
-            setLive((current) => (current ? { ...current, degraded: data.degraded } : current)),
+            setLive((current) =>
+              current ? { ...current, degraded: data.degraded, paths: data.paths ?? [] } : current,
+            ),
           onDelta: (text) =>
             setLive((current) =>
               current
@@ -223,6 +227,43 @@ export function ResearchPage() {
                     </p>
                   ) : null}
                   <DegradedNote degraded={live.degraded} />
+                  {live.paths.length > 0 ? (
+                    <section className="card card-pad" style={{ marginTop: 10 }}>
+                      <h4 style={{ marginBottom: 8 }}>关系路径</h4>
+                      <div className="stack" style={{ gap: 10 }}>
+                        {live.paths.map((path, index) => (
+                          <div key={index}>
+                            <p className="tiny">
+                              {path.nodeNames.map((name, position) => (
+                                <span key={`${name}-${position}`}>
+                                  {position > 0
+                                    ? ` —${path.edges[position - 1]?.type ?? ''}→ `
+                                    : ''}
+                                  <strong>{name}</strong>
+                                </span>
+                              ))}
+                            </p>
+                            <p className="tiny muted">
+                              置信度 {path.scoreBreakdown.confidenceProduct.toFixed(2)} × 来源质量{' '}
+                              {path.scoreBreakdown.sourceQuality.toFixed(2)} × 弱关系惩罚{' '}
+                              {path.scoreBreakdown.weakPenalty.toFixed(2)} = {path.score.toFixed(2)}
+                            </p>
+                            <div className="row" style={{ gap: 6, flexWrap: 'wrap', marginTop: 4 }}>
+                              {path.evidenceRefs?.map((ref, refIndex) => (
+                                <Link
+                                  key={`${ref.chunkId}-${refIndex}`}
+                                  className="badge"
+                                  to={`/documents/${ref.documentId}?chunk=${ref.chunkId}`}
+                                >
+                                  证据 {refIndex + 1}
+                                </Link>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+                  ) : null}
                 </div>
               </>
             ) : null}

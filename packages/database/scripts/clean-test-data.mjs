@@ -47,6 +47,8 @@ const titlePatterns = [
   /^e2e 笔记/i,
   /^AC[- ]/i,
   /^AC15/,
+  /^ACV2/,
+  /^冒烟 Agent/,
   /^DBG/,
   /^冲突[A-D] /,
   /^V15 /,
@@ -89,6 +91,8 @@ const prefixes = [
   'e2e ',
   'AC-',
   'AC15',
+  'acv2',
+  '冒烟 agent',
   'dbg',
   '冲突',
   'v15 ',
@@ -169,6 +173,12 @@ if (stalePages.length > 0) {
   await prisma.wikiPage.deleteMany({ where: { id: { in: ids } } });
 }
 
+const testAgents = await prisma.agent.deleteMany({
+  where: {
+    OR: [{ name: { startsWith: 'ACV2' } }, { name: { startsWith: '冒烟 Agent' } }],
+  },
+});
+
 const orphanProposals = await prisma.wikiProposal.findMany({
   where: { status: 'pending', documentVersionId: null, modelMeta: { not: null } },
   select: { id: true },
@@ -180,6 +190,6 @@ if (orphanProposals.length > 0) {
 }
 
 console.log(
-  `清理完成：${stale.length} 份测试文档、${sources.count} 条来源、${staleConversations.length} 个测试会话、${wikiPages.length} 个 Wiki 页面、${orphanProposals.length} 条孤儿提案`,
+  `清理完成：${stale.length} 份测试文档、${sources.count} 条来源、${staleConversations.length} 个测试会话、${wikiPages.length} 个 Wiki 页面、${orphanProposals.length} 条孤儿提案、${testAgents.count} 个 Agent`,
 );
 await prisma.$disconnect();

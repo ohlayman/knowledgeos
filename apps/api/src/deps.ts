@@ -1,14 +1,17 @@
 import { Redis } from 'ioredis';
 import {
+  AgentRepository,
   ChunkRepository,
   ConversationRepository,
   createPrismaClient,
   DocumentRepository,
   JobRepository,
   loadProviderSettings,
+  PrismaGraphStore,
   WikiRepository,
   type PrismaClient,
 } from '@kos/database';
+import { GraphService } from '@kos/graph';
 import { collectionName, createEmbeddingProvider } from '@kos/embeddings';
 import { createChatProvider } from '@kos/llm';
 import {
@@ -21,7 +24,7 @@ import {
   retryIngest,
 } from '@kos/queue';
 import { QdrantStore, RetrievalService } from '@kos/retrieval';
-import type { Env } from '@kos/shared';
+import { normalizeEntityName, type Env } from '@kos/shared';
 import { LocalStorageAdapter, resolveDataDir, type StorageAdapter } from '@kos/storage';
 import { DocumentService, type IngestEnqueuer } from './modules/documents/document-service.js';
 import { createUrlFetcher, type UrlFetcher } from './modules/documents/url-fetcher.js';
@@ -32,6 +35,7 @@ import { MaintenanceService } from './modules/maintenance/maintenance-service.js
 import { MetricsService } from './modules/metrics/metrics-service.js';
 import { SettingsService } from './modules/settings/settings-service.js';
 import { WikiService } from './modules/wiki/wiki-service.js';
+import { createAgentService, type AgentService } from './modules/agents/agent-service.js';
 
 export interface Pingable {
   ping(): Promise<void>;
@@ -59,6 +63,8 @@ export interface AppDeps {
   maintenance: MaintenanceService;
   urlFetcher: UrlFetcher;
   wiki: WikiService;
+  graph: GraphService;
+  agents: AgentService;
 }
 
 export async function createDeps(env: Env): Promise<AppDeps> {
@@ -91,10 +97,42 @@ export async function createDeps(env: Env): Promise<AppDeps> {
     collection: collectionName(embeddingModel, embeddingDim),
     vectorSize: embeddingDim,
   });
+  const graph = new GraphService(new PrismaGraphStore(prisma));
+  const graphPort = {
+    searchPaths: async (entityNames: string[], maxHops = 3) => {
+      const entities = await prisma.entity.findMany({
+        where: {
+          status: 'active',
+          normalizedName: {
+            in: entityNames.map((name) => normalizeEntityName(name)).filter(Boolean),
+          },
+        },
+        select: { id: true, canonicalName: true },
+      });
+      if (entities.length < 2) {
+        return [];
+      }
+      const paths = await graph.paths(entities[0]!.id, entities[1]!.id, maxHops, 5);
+      return paths.map((path) => ({
+        nodeNames: path.nodes.map((node) => node.name),
+        edges: path.edges.map((edge) => ({
+          from: path.nodes.find((node) => node.id === edge.fromId)?.name ?? edge.fromId,
+          to: path.nodes.find((node) => node.id === edge.toId)?.name ?? edge.toId,
+          type: edge.type,
+          confidence: edge.confidence,
+          evidenceChunkIds: edge.evidenceChunkIds,
+        })),
+        chunkIds: path.chunkIds,
+        score: path.score,
+        scoreBreakdown: path.scoreBreakdown,
+      }));
+    },
+  };
   const retrieval = new RetrievalService({
     prisma,
     embeddings: createEmbeddingProvider(env, storedEmbedding),
     qdrant: qdrantStore,
+    graph: graphPort,
   });
   const chatProvider = async () =>
     createChatProvider(env, await loadProviderSettings(prisma, env.APP_ENCRYPTION_KEY, 'llm'));
@@ -111,12 +149,21 @@ export async function createDeps(env: Env): Promise<AppDeps> {
   const maintenance = new MaintenanceService(prisma, storage, qdrantStore);
   const urlFetcher = createUrlFetcher();
   const extractQueue = createDocumentQueue(env.REDIS_URL, EXTRACT_QUEUE);
-  const wiki = new WikiService(prisma, new WikiRepository(prisma), async (input) => {
+  const wikiRepository = new WikiRepository(prisma);
+  const wiki = new WikiService(prisma, wikiRepository, async (input) => {
     await enqueueDocument(extractQueue, 'extract', {
       jobId: `extract-${input.versionId}-${Date.now()}`,
       documentId: input.documentId,
       versionId: input.versionId,
     });
+  });
+  const agents = createAgentService({
+    prisma,
+    agents: new AgentRepository(prisma),
+    wiki: wikiRepository,
+    retrieval,
+    graph,
+    chatProvider,
   });
 
   const redis = new Redis(env.REDIS_URL, {
@@ -144,6 +191,8 @@ export async function createDeps(env: Env): Promise<AppDeps> {
     maintenance,
     urlFetcher,
     wiki,
+    graph,
+    agents,
     db: {
       async ping() {
         await prisma.$queryRaw`SELECT 1`;

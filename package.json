@@ -21,7 +21,9 @@
     "restore": "node scripts/restore.mjs",
     "accept:v1": "node scripts/acceptance-v1.mjs",
     "accept:v15": "node scripts/acceptance-v15.mjs",
+    "accept:v2": "node scripts/acceptance-v2.mjs",
     "report:wiki": "node scripts/wiki-quality-report.mjs",
+    "report:graph": "node scripts/graph-quality-report.mjs",
     "check:contrast": "node scripts/check-contrast.mjs",
     "clean:test-data": "pnpm --filter @kos/database exec node scripts/clean-test-data.mjs"
   },

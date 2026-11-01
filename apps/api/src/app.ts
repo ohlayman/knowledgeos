@@ -13,6 +13,8 @@ import { metricsRoutes } from './modules/metrics/routes.js';
 import { settingsRoutes } from './modules/settings/routes.js';
 import { retrievalRoutes } from './modules/retrieval/routes.js';
 import { wikiRoutes } from './modules/wiki/routes.js';
+import { graphRoutes } from './modules/graph/routes.js';
+import { agentRoutes } from './modules/agents/routes.js';
 import { healthRoutes } from './routes/health.js';
 
 export function buildApp(deps: AppDeps): FastifyInstance {
@@ -29,11 +31,23 @@ export function buildApp(deps: AppDeps): FastifyInstance {
   });
 
   app.setErrorHandler((error, request, reply) => {
-    const status = error instanceof ApiError ? error.status : 500;
-    if (status >= 500) {
-      request.log.error({ err: error }, 'request failed');
+    if (error instanceof ApiError) {
+      void reply.status(error.status).send(toErrorEnvelope(error, request.id));
+      return;
     }
-    void reply.status(status).send(toErrorEnvelope(error, request.id));
+
+    const frameworkStatus = (error as { statusCode?: number }).statusCode;
+    if (frameworkStatus && frameworkStatus >= 400 && frameworkStatus < 500) {
+      const wrapped = new ApiError(
+        'INVALID_ARGUMENT',
+        (error as { message?: string }).message ?? '请求不合法',
+      );
+      void reply.status(frameworkStatus).send(toErrorEnvelope(wrapped, request.id));
+      return;
+    }
+
+    request.log.error({ err: error }, 'request failed');
+    void reply.status(500).send(toErrorEnvelope(error, request.id));
   });
 
   app.setNotFoundHandler((request, reply) => {
@@ -50,6 +64,8 @@ export function buildApp(deps: AppDeps): FastifyInstance {
   app.register(chunkRoutes, { deps });
   app.register(maintenanceRoutes, { deps });
   app.register(wikiRoutes, { deps });
+  app.register(graphRoutes, { deps });
+  app.register(agentRoutes, { deps });
 
   return app;
 }

@@ -1,12 +1,16 @@
 import type { QueryUnderstanding, QueryUnderstandingResult, QuestionType } from './types.js';
 
 const COMPARISON_PATTERN = /区别|对比|差异|有什么不同|\bvs\.?\b|versus/i;
+const RELATION_PATTERN = /关系|关联|联系|相关/;
 const PROCEDURE_PATTERN = /如何|怎么|怎样|步骤|流程|如何做/;
 const FACT_PATTERN = /是什么|什么是|谁|何时|多少|哪年|吗|？|\?/;
 
 export function detectQuestionType(question: string): QuestionType {
   if (COMPARISON_PATTERN.test(question)) {
     return 'comparison';
+  }
+  if (RELATION_PATTERN.test(question) && /和|与|跟|及|[A-Za-z]/.test(question)) {
+    return 'relation';
   }
   if (PROCEDURE_PATTERN.test(question)) {
     return 'procedure';
@@ -28,7 +32,12 @@ export function extractEntities(question: string): string[] {
   const parts = question
     .split(/(?:和|与|跟|及|\bvs\.?\b)/i)
     .map((part) => part.split(/(?:有?什么|怎么|如何|区别|差异|对比)/)[0] ?? '')
-    .map((part) => part.replace(/[？?。，,、\s]+$/g, '').trim())
+    .map((part) =>
+      part
+        .replace(/[？?。，,、\s]+$/g, '')
+        .replace(/(?:是|的|有|在)$/u, '')
+        .trim(),
+    )
     .filter((part) => part.length >= 2 && part.length <= 50);
 
   return parts.slice(0, 10);
@@ -37,7 +46,8 @@ export function extractEntities(question: string): string[] {
 export class RuleBasedQueryUnderstanding implements QueryUnderstanding {
   async understand(question: string): Promise<QueryUnderstandingResult> {
     const questionType = detectQuestionType(question);
-    const entities = questionType === 'comparison' ? extractEntities(question) : [];
+    const entities =
+      questionType === 'comparison' || questionType === 'relation' ? extractEntities(question) : [];
 
     return {
       rewrittenQuery: question.trim(),

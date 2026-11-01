@@ -348,3 +348,174 @@ export type WikiConflict = z.infer<typeof WikiConflictSchema>;
 export type WikiReviewTask = z.infer<typeof WikiReviewTaskSchema>;
 export type WikiEntity = z.infer<typeof WikiEntitySchema>;
 export type WikiDiff = z.infer<typeof WikiDiffSchema>;
+
+export const GraphNodeSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  type: z.string(),
+  aliases: z.array(z.string()).default([]),
+  mentionCount: z.number(),
+  confidence: z.number(),
+  mergedIntoId: z.string().nullable().optional(),
+});
+
+export const GraphEdgeSchema = z.object({
+  id: z.string(),
+  fromId: z.string(),
+  toId: z.string(),
+  type: z.string(),
+  confidence: z.number(),
+  evidenceChunkIds: z.array(z.string()).default([]),
+  status: z.string(),
+  origin: z.string(),
+  direction: z.string(),
+});
+
+export const GraphNeighborhoodSchema = z.object({
+  nodes: z.array(GraphNodeSchema),
+  edges: z.array(GraphEdgeSchema),
+  truncated: z.boolean(),
+});
+
+export const GraphEntrySchema = z.array(z.object({ node: GraphNodeSchema, degree: z.number() }));
+
+export const GraphPathSchema = z.object({
+  nodeIds: z.array(z.string()),
+  edgeIds: z.array(z.string()),
+  nodes: z.array(GraphNodeSchema),
+  edges: z.array(GraphEdgeSchema),
+  chunkIds: z.array(z.string()),
+  score: z.number(),
+  scoreBreakdown: z.object({
+    confidenceProduct: z.number(),
+    sourceQuality: z.number(),
+    weakPenalty: z.number(),
+  }),
+});
+
+export const GraphPathListSchema = z.array(GraphPathSchema);
+
+export const GraphEdgeListSchema = z.array(GraphEdgeSchema);
+
+export const EntityMentionSchema = z.object({
+  id: z.string(),
+  chunkId: z.string(),
+  startOffset: z.number(),
+  endOffset: z.number(),
+  chunk: z.object({ id: z.string(), documentId: z.string(), text: z.string() }),
+});
+
+export const EntityMentionListSchema = z.array(EntityMentionSchema);
+
+export type GraphNode = z.infer<typeof GraphNodeSchema>;
+export type GraphEdge = z.infer<typeof GraphEdgeSchema>;
+export type GraphNeighborhood = z.infer<typeof GraphNeighborhoodSchema>;
+export type GraphEntry = z.infer<typeof GraphEntrySchema>;
+export type GraphPath = z.infer<typeof GraphPathSchema>;
+export type EntityMention = z.infer<typeof EntityMentionSchema>;
+
+export const AgentVersionSchema = z.object({
+  id: z.string(),
+  versionNo: z.number(),
+  systemPrompt: z.string(),
+  model: z.string(),
+  temperature: z.number(),
+  toolAllowlist: z.array(z.string()).default([]),
+  maxSteps: z.number(),
+  tokenBudget: z.number(),
+  toolCallBudget: z.number(),
+  allowProposal: z.boolean(),
+  createdAt: z.string(),
+});
+
+export const AgentRunSummarySchema = z.object({
+  id: z.string(),
+  agentId: z.string(),
+  agentVersionId: z.string(),
+  trigger: z.string(),
+  input: z.unknown(),
+  status: z.string(),
+  totalSteps: z.number(),
+  totalTokens: z.number(),
+  durationMs: z.number().nullable(),
+  terminationReason: z.string().nullable(),
+  createdAt: z.string(),
+  finishedAt: z.string().nullable(),
+});
+
+export const AgentSummarySchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  description: z.string().nullable(),
+  status: z.string(),
+  versions: z.array(AgentVersionSchema).default([]),
+  runs: z.array(AgentRunSummarySchema).default([]),
+  monthTokens: z.number().optional(),
+});
+
+export const AgentListSchema = z.array(AgentSummarySchema);
+
+export const AgentDetailSchema = AgentSummarySchema.extend({
+  monthTokens: z.number().default(0),
+  medianTokens: z.number().nullable().optional(),
+});
+
+export const RunStepSchema = z.object({
+  id: z.string(),
+  stepIndex: z.number(),
+  type: z.string(),
+  outputSummary: z.string().nullable(),
+  durationMs: z.number().nullable(),
+});
+
+export const ToolCallSchema = z.object({
+  id: z.string(),
+  stepIndex: z.number(),
+  toolName: z.string(),
+  paramsRedacted: z.unknown(),
+  resultSummary: z.string().nullable(),
+  status: z.string(),
+  durationMs: z.number(),
+  errorCode: z.string().nullable(),
+});
+
+export const AgentRunDetailSchema = AgentRunSummarySchema.extend({
+  steps: z.array(RunStepSchema).default([]),
+  toolCalls: z.array(ToolCallSchema).default([]),
+  agent: AgentSummarySchema.pick({ id: true, name: true }),
+  agentVersion: AgentVersionSchema,
+});
+
+export const AgentRunListSchema = z.array(AgentRunSummarySchema);
+
+export const AgentUsageSchema = z.object({
+  runs: z.number(),
+  tokens: z.number(),
+  budget: z.number(),
+  remaining: z.number(),
+});
+
+export const AgentEstimateSchema = z.object({
+  medianTokens: z.number().nullable(),
+  estimatedTokens: z.number(),
+});
+
+export const AgentToolSchema = z.object({
+  name: z.string(),
+  description: z.string(),
+  kind: z.string(),
+  paramsHint: z.string(),
+});
+
+export const AgentToolListSchema = z.array(AgentToolSchema);
+
+export type AgentSummary = z.infer<typeof AgentSummarySchema>;
+export type AgentDetail = z.infer<typeof AgentDetailSchema>;
+export type AgentVersion = z.infer<typeof AgentVersionSchema>;
+export type AgentRunSummary = z.infer<typeof AgentRunSummarySchema>;
+export type AgentRunDetail = z.infer<typeof AgentRunDetailSchema>;
+export type RunStep = z.infer<typeof RunStepSchema>;
+export type ToolCall = z.infer<typeof ToolCallSchema>;
+export type AgentTool = z.infer<typeof AgentToolSchema>;
+export type AgentUsage = z.infer<typeof AgentUsageSchema>;
+export type AgentEstimate = z.infer<typeof AgentEstimateSchema>;

@@ -1,3 +1,4 @@
+export * from './agent.js';
 export * from './bigram.js';
 export * from './citation.js';
 export * from './constants.js';

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { PageHeader } from '../../components/business.js';
 import {
@@ -14,6 +14,7 @@ import {
   useChunks,
   useDeleteDocument,
   useDocument,
+  useEntityMentions,
   useUpdateDocument,
 } from '../../features/hooks.js';
 import { errorMessage } from '../../lib/api-client.js';
@@ -33,6 +34,42 @@ export function DocumentPage() {
   const [highlightId, setHighlightId] = useState<string | null>(null);
 
   const targetChunk = params.get('chunk');
+  const entityId = params.get('entity');
+  const entityMentions = useEntityMentions(entityId ?? undefined);
+
+  const renderChunkText = (chunkId: string, text: string) => {
+    if (!entityId) {
+      return text;
+    }
+    const ranges = (entityMentions.data ?? [])
+      .filter((mention) => mention.chunkId === chunkId)
+      .sort((a, b) => a.startOffset - b.startOffset);
+    if (ranges.length === 0) {
+      return text;
+    }
+
+    const parts: ReactNode[] = [];
+    let cursor = 0;
+    ranges.forEach((range, index) => {
+      if (range.startOffset > cursor) {
+        parts.push(text.slice(cursor, range.startOffset));
+      }
+      parts.push(
+        <mark
+          key={`${range.id}-${index}`}
+          data-entity-highlight="true"
+          style={{ background: 'var(--highlight)', color: 'inherit' }}
+        >
+          {text.slice(range.startOffset, range.endOffset)}
+        </mark>,
+      );
+      cursor = range.endOffset;
+    });
+    if (cursor < text.length) {
+      parts.push(text.slice(cursor));
+    }
+    return parts;
+  };
 
   useEffect(() => {
     if (!targetChunk || !chunks.data) {
@@ -168,7 +205,7 @@ export function DocumentPage() {
                     {chunk.pageStart ? ` · 第 ${chunk.pageStart} 页` : ''}
                     {chunk.headingPath.length > 0 ? ` · ${chunk.headingPath.join(' › ')}` : ''}
                   </div>
-                  {chunk.text}
+                  {renderChunkText(chunk.id, chunk.text)}
                 </section>
               ))}
             </article>

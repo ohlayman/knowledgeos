@@ -13,10 +13,29 @@ export interface AnswerSink {
   status(payload: { phase: string; scannedDocuments?: number }): void;
   retrieval(payload: {
     traceId?: string;
+    questionType?: string;
     vectorCount: number;
     keywordCount: number;
     finalChunkIds: string[];
     degraded: string[];
+    paths?: Array<{
+      nodeNames: string[];
+      edges: Array<{
+        from: string;
+        to: string;
+        type: string;
+        confidence: number;
+        evidenceChunkIds: string[];
+      }>;
+      chunkIds: string[];
+      evidenceRefs?: Array<{ chunkId: string; documentId: string }>;
+      score: number;
+      scoreBreakdown: {
+        confidenceProduct: number;
+        sourceQuality: number;
+        weakPenalty: number;
+      };
+    }>;
   }): void;
   delta(text: string): void;
   citations(payload: { citations: CitationPayload[] }): void;
@@ -161,10 +180,12 @@ export class ConversationService {
 
     sink.retrieval({
       ...(retrieval.runId ? { traceId: retrieval.runId } : {}),
+      questionType: retrieval.trace.questionType,
       vectorCount: retrieval.trace.vectorHits,
       keywordCount: retrieval.trace.keywordHits,
       finalChunkIds: retrieval.evidence.map((item) => item.chunkId),
       degraded: retrieval.trace.degraded,
+      ...(retrieval.trace.paths ? { paths: retrieval.trace.paths } : {}),
     });
 
     if (retrieval.runId) {

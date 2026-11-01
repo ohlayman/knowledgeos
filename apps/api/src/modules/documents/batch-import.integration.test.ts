@@ -70,6 +70,8 @@ describe.skipIf(!enabled)('POST /api/v1/documents/files batch import', () => {
         },
       },
       wiki: {} as AppDeps['wiki'],
+      graph: {} as AppDeps['graph'],
+      agents: {} as AppDeps['agents'],
     };
 
     app = buildApp(deps);
