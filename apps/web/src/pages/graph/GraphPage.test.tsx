@@ -64,6 +64,21 @@ describe('GraphPage 视图切换', () => {
     expect(localStorage.getItem(GRAPH_VIEW_STORAGE_KEY)).toBe('2d');
   });
 
+  it('列表模式不再渲染隐藏节点列表', async () => {
+    render(
+      <MemoryRouter>
+        <GraphPage />
+      </MemoryRouter>,
+    );
+
+    await screen.findByTestId('graph3d-view');
+    await userEvent.click(screen.getByRole('button', { name: '列表' }));
+
+    await waitFor(() =>
+      expect(screen.queryByRole('list', { name: '图谱节点列表' })).not.toBeInTheDocument(),
+    );
+  });
+
   it('窄屏默认列表', async () => {
     Object.defineProperty(window, 'innerWidth', { configurable: true, value: 390 });
     render(

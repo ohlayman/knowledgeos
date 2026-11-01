@@ -144,3 +144,29 @@ test('search focuses an existing node without clearing the view', async ({ page 
     .poll(async () => root.getAttribute('data-camera'), { timeout: 10_000 })
     .not.toBe(before);
 });
+
+test('expanding a node does not reset the camera', async ({ page }) => {
+  const webgl = await page.evaluate(() => {
+    const canvas = document.createElement('canvas');
+    return Boolean(canvas.getContext('webgl2') ?? canvas.getContext('webgl'));
+  });
+  test.skip(!webgl, '本机 Playwright 无 WebGL');
+
+  await page.goto('/graph');
+  const first = page.getByRole('list', { name: '图谱节点列表' }).getByRole('button').first();
+  await expect(first).toBeAttached({ timeout: 15_000 });
+  const root = page.locator('[data-view-mode]');
+  await expect
+    .poll(async () => root.getAttribute('data-camera'), { timeout: 10_000 })
+    .not.toBe('0,0,450');
+  const before = await root.getAttribute('data-camera');
+
+  await first.focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('button', { name: '关闭' })).toBeVisible();
+  await page.waitForTimeout(3000);
+  expect(await root.getAttribute('data-camera')).toBe(before);
+
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('button', { name: '关闭' })).toHaveCount(0);
+});

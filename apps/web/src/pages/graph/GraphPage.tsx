@@ -217,6 +217,16 @@ export function GraphPage() {
     }
   }, [viewMode, nodes.size]);
 
+  useEffect(() => {
+    const handler = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setSelected(null);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
+
   const selectedNode = selected ? nodes.get(selected) : null;
   const selectedEdges = selected
     ? [...edges.values()].filter((edge) => edge.fromId === selected || edge.toId === selected)
@@ -332,12 +342,14 @@ export function GraphPage() {
         </div>
       ) : null}
 
-      <GraphA11yList
-        nodes={visibleNodes}
-        selected={selected}
-        onSelect={setSelected}
-        onExpand={(node) => void expand(node)}
-      />
+      {viewMode !== 'list' ? (
+        <GraphA11yList
+          nodes={visibleNodes}
+          selected={selected}
+          onSelect={setSelected}
+          onExpand={(node) => void expand(node)}
+        />
+      ) : null}
 
       {aggregate ? (
         <div className="card card-pad" style={{ marginBottom: 12 }}>

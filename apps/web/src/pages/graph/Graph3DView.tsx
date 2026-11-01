@@ -16,6 +16,7 @@ import * as THREE from 'three';
 import SpriteText from 'three-spritetext';
 import type { GraphEdge, GraphNode } from '../../features/schemas.js';
 import { useTheme } from '../../lib/theme.js';
+import { shouldAutoFit } from '../../lib/graph-view.js';
 import {
   labelVisible,
   neighborsOf,
@@ -131,7 +132,12 @@ export const Graph3DView = forwardRef<Graph3DViewHandle, Graph3DViewProps>(funct
     engineStopRef.current = onEngineStop;
   }, [onEngineStop]);
 
+  const autoFitted = useRef(false);
   useEffect(() => {
+    if (!shouldAutoFit(autoFitted.current, data.nodes.length)) {
+      return;
+    }
+    autoFitted.current = true;
     const fitTimer = setTimeout(() => {
       graphRef.current?.cameraPosition({ x: 0, y: 0, z: 450 }, { x: 0, y: 0, z: 0 }, 600);
       engineStopRef.current?.();
@@ -158,7 +164,7 @@ export const Graph3DView = forwardRef<Graph3DViewHandle, Graph3DViewProps>(funct
 
   useEffect(() => {
     graphRef.current?.refresh();
-  }, [selected, hovered]);
+  }, [resolved, selected, hovered]);
 
   useEffect(() => {
     if (!onContextLost) {
@@ -227,14 +233,25 @@ export const Graph3DView = forwardRef<Graph3DViewHandle, Graph3DViewProps>(funct
         const graph = graphRef.current;
         const node = dataRef.current.nodes.find((item) => item.id === id);
         if (!graph || !node) {
-          if (tries < 10) {
+          if (tries < 30) {
             window.setTimeout(() => attempt(tries + 1), 100);
           }
           return;
         }
-        const x = node.x ?? 0;
-        const y = node.y ?? 0;
-        const z = node.z ?? 0;
+        if (
+          typeof node.x !== 'number' ||
+          typeof node.y !== 'number' ||
+          typeof node.z !== 'number'
+        ) {
+          graph.d3ReheatSimulation();
+          if (tries < 30) {
+            window.setTimeout(() => attempt(tries + 1), 100);
+          }
+          return;
+        }
+        const x = node.x;
+        const y = node.y;
+        const z = node.z;
         const distance = Math.hypot(x, y, z) || 1;
         const ratio = 1 + FOCUS_DISTANCE / distance;
         graph.cameraPosition({ x: x * ratio, y: y * ratio, z: z * ratio }, { x, y, z }, 800);

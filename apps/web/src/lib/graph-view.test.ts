@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { canUse3D, defaultViewMode, resolveViewMode, shouldOfferFallback } from './graph-view.js';
+import {
+  canUse3D,
+  defaultViewMode,
+  resolveViewMode,
+  shouldAutoFit,
+  shouldOfferFallback,
+} from './graph-view.js';
 
 describe('图谱视图模式', () => {
   it('桌面且 WebGL 可用时默认 3D', () => {
@@ -20,6 +26,12 @@ describe('图谱视图模式', () => {
     expect(resolveViewMode('3d', 390, true)).toBe('list');
     expect(resolveViewMode('3d', 1440, false)).toBe('2d');
     expect(resolveViewMode('unknown', 1440, true)).toBe('3d');
+  });
+
+  it('只对首次非空图自动定位', () => {
+    expect(shouldAutoFit(false, 2)).toBe(true);
+    expect(shouldAutoFit(true, 3)).toBe(false);
+    expect(shouldAutoFit(false, 0)).toBe(false);
   });
 
   it('首帧过慢或帧率过低时提示切换', () => {

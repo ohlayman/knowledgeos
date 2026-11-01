@@ -33,3 +33,7 @@ export function resolveViewMode(
 export function shouldOfferFallback(firstFrameMs: number, fps: number): boolean {
   return firstFrameMs > 4000 || fps < 20;
 }
+
+export function shouldAutoFit(fitted: boolean, nodeCount: number): boolean {
+  return !fitted && nodeCount > 0;
+}

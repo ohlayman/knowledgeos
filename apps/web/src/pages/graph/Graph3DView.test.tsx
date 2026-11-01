@@ -134,7 +134,7 @@ describe('Graph3DView', () => {
     await screen.findByTestId('mock-force-graph');
 
     act(() => ref.current?.focusNode('a'));
-    expect(graphSpies.cameraPosition).toHaveBeenCalled();
+    expect(graphSpies.d3ReheatSimulation).toHaveBeenCalled();
 
     await userEvent.hover(screen.getByText('hover-b'));
     expect(screen.getByTestId('graph3d-view')).toHaveAttribute('data-hovered', 'b');

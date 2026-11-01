@@ -30,15 +30,15 @@ pnpm perf:graph3d
 | AC-V2.1-6 几何体/线型/冻结且无发光粒子 | 通过 | `graph-style.test.ts`：五类几何体与浅/深色板；布局 2.5s 后写 `data-engine=stopped`；无 Bloom/粒子配置 | 2026-11-01 |
 | AC-V2.1-7 >400 聚合，500 节点/2000 边上限 | 通过 | 现有 `shouldAggregate` 测试；`toGraph3DData` 截断测试；400 节点压测可交互 | 2026-11-01 |
 | AC-V2.1-8 WebGL 不可用 / 上下文丢失 1s 内切 2D | 通过 | `graph3d.spec.ts`：覆盖 `getContext` 与派发 `webglcontextlost` 均切到平面；`perf:graph3d` 实测 261ms | 2026-11-01 |
-| AC-V2.1-9 隐藏节点列表可键盘操作 | 通过 | `GraphA11yList.test.tsx`；E2E 用 `Tab`/`Enter` 展开节点 | 2026-11-01 |
+| AC-V2.1-9 隐藏节点列表可键盘操作 | 通过 | `GraphA11yList.test.tsx`；E2E 用 `Tab`/`Enter` 展开节点，`Esc` 关闭抽屉；列表模式不重复渲染 | 2026-11-01 |
 | AC-V2.1-10 3D 懒加载、首帧与帧率达标 | 通过 | 主包 gzip 130.6KB；`Graph3DView` 独立 chunk gzip 387.5KB；首帧 865ms、400 节点 55fps | 2026-11-01 |
 
 ## 4. 质量门禁
 
 | 项 | 结果 |
 | --- | --- |
-| Web 单测 | 37/37（新增 19：视图模式、WebGL、数据适配、配色、3D 组件、隐藏列表、页面切换） |
-| E2E | 21/21（新增 7：3D 默认/持久化、移动端、相机、隐藏列表、WebGL 降级、上下文丢失、搜索定位） |
+| Web 单测 | 39/39（新增 21：视图模式、WebGL、数据适配、配色、3D 组件、隐藏列表、页面切换、列表去重） |
+| E2E | 22/22（新增 8：3D 默认/持久化、移动端、相机、隐藏列表、WebGL 降级、上下文丢失、搜索定位、展开不重置相机） |
 | 3D 首帧 | 865ms（本机，入口 20 节点） |
 | 400 节点帧率 | 55fps（4 秒平均，Playwright Chromium） |
 | 布局冻结 | 3.4s 内写 `data-engine=stopped` |
