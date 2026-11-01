@@ -61,6 +61,10 @@ function fakeDeps(): AppDeps {
     wiki: {} as AppDeps['wiki'],
     graph: {} as AppDeps['graph'],
     agents: {} as AppDeps['agents'],
+    mcpTokens: {} as AppDeps['mcpTokens'],
+    chatProvider: async () => {
+      throw new Error('unused');
+    },
   };
 }
 

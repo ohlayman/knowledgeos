@@ -15,6 +15,7 @@ import { retrievalRoutes } from './modules/retrieval/routes.js';
 import { wikiRoutes } from './modules/wiki/routes.js';
 import { graphRoutes } from './modules/graph/routes.js';
 import { agentRoutes } from './modules/agents/routes.js';
+import { mcpRoutes } from './modules/mcp/routes.js';
 import { healthRoutes } from './routes/health.js';
 
 export function buildApp(deps: AppDeps): FastifyInstance {
@@ -66,6 +67,7 @@ export function buildApp(deps: AppDeps): FastifyInstance {
   app.register(wikiRoutes, { deps });
   app.register(graphRoutes, { deps });
   app.register(agentRoutes, { deps });
+  app.register(mcpRoutes, { deps });
 
   return app;
 }

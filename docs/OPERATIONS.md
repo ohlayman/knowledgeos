@@ -62,6 +62,47 @@ E2E 需要 API、worker 与 Docker 依赖已在运行，且会写入一条测试
 RUN_DB_INTEGRATION=1 RUN_DESTRUCTIVE_TESTS=1 pnpm --filter @kos/api exec vitest run src/modules/maintenance
 ```
 
+## 2.2 MCP 接入
+
+```bash
+pnpm --filter @kos/mcp-server build
+```
+
+1. 打开 Web 的「设置 → MCP 接入」，创建令牌；明文只显示一次。
+2. 把配置写到本机文件（非 Windows 系统要求 600 权限）：
+
+```json
+{
+  "apiUrl": "http://127.0.0.1:3000",
+  "token": "kos_xxxxxxxx"
+}
+```
+
+3. stdio 模式（Claude Code / Cursor）：
+
+```bash
+node apps/mcp-server/dist/index.js --config ./kos-mcp.json
+```
+
+4. HTTP 模式（远程或调试）：
+
+```bash
+node apps/mcp-server/dist/index.js --http --port 3344 --config ./kos-mcp.json
+```
+
+HTTP 模式优先使用请求头 `Authorization: Bearer kos_...`；配置了 `allowedOrigins` 时只放行列出的 Origin，未配置时只放行 localhost / 127.0.0.1。TLS 通过在配置中提供 `tls.certFile` 与 `tls.keyFile` 启用。
+
+排查：
+
+- `401`：令牌无效、已过期或已吊销；在设置页重新创建。
+- `403`：该工具不在令牌白名单中；编辑作用域时勾选。
+- `429`：QPS 或日调用上限；展开调用日志查看恢复时间。
+- 工具返回为空：检查令牌作用域与文档标签是否匹配；空结果不是错误。
+
+审计不记录返回正文，只记录工具、参数摘要（查询词与作用域）、条数、耗时与状态。定期用 `pnpm clean:test-data` 清理验收令牌。
+
+---
+
 ## 3. 生产部署
 
 ```bash

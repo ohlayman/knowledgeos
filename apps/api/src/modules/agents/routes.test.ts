@@ -35,6 +35,10 @@ function fakeDeps(agents: Record<string, unknown>): AppDeps {
     wiki: {} as AppDeps['wiki'],
     graph: {} as AppDeps['graph'],
     agents: agents as unknown as AppDeps['agents'],
+    mcpTokens: {} as AppDeps['mcpTokens'],
+    chatProvider: async () => {
+      throw new Error('unused');
+    },
   };
 }
 

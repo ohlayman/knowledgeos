@@ -519,3 +519,68 @@ export type ToolCall = z.infer<typeof ToolCallSchema>;
 export type AgentTool = z.infer<typeof AgentToolSchema>;
 export type AgentUsage = z.infer<typeof AgentUsageSchema>;
 export type AgentEstimate = z.infer<typeof AgentEstimateSchema>;
+
+export const McpScopeSchema = z.object({
+  mode: z.enum(['all', 'tags', 'documents']),
+  tags: z.array(z.string()).optional(),
+  documentIds: z.array(z.string()).optional(),
+});
+
+export const McpTokenSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  tokenPrefix: z.string(),
+  scope: McpScopeSchema,
+  scopeSummary: z.string(),
+  tools: z.array(z.string()),
+  dailyLimit: z.number(),
+  qpsLimit: z.number(),
+  expiresAt: z.string().nullable(),
+  revokedAt: z.string().nullable(),
+  lastUsedAt: z.string().nullable(),
+  createdAt: z.string(),
+  todayCalls: z.number(),
+  status: z.enum(['active', 'expired', 'revoked']),
+});
+
+export const McpCreatedTokenSchema = McpTokenSchema.extend({ token: z.string() });
+
+export const McpTokenListSchema = z.array(McpTokenSchema);
+
+export const McpAuditSchema = z.object({
+  id: z.string(),
+  tokenId: z.string().nullable(),
+  tokenName: z.string().nullable(),
+  tool: z.string(),
+  paramsSummary: z.unknown().nullable(),
+  resultCount: z.number().nullable(),
+  durationMs: z.number(),
+  statusCode: z.number(),
+  transport: z.string(),
+  suspicious: z.boolean(),
+  createdAt: z.string(),
+});
+
+export const McpAuditListSchema = z.array(McpAuditSchema);
+
+export const McpAuditStatsSchema = z.object({
+  calls: z.number(),
+  failures: z.number(),
+  rateLimited: z.number(),
+  avgLatencyMs: z.number(),
+  byTool: z.array(z.object({ tool: z.string(), count: z.number() })),
+});
+
+export const McpTestResultSchema = z.object({
+  ok: z.boolean(),
+  latencyMs: z.number().optional(),
+  resultCount: z.number().optional(),
+  message: z.string(),
+});
+
+export type McpScope = z.infer<typeof McpScopeSchema>;
+export type McpToken = z.infer<typeof McpTokenSchema>;
+export type McpCreatedToken = z.infer<typeof McpCreatedTokenSchema>;
+export type McpAudit = z.infer<typeof McpAuditSchema>;
+export type McpAuditStats = z.infer<typeof McpAuditStatsSchema>;
+export type McpTestResult = z.infer<typeof McpTestResultSchema>;

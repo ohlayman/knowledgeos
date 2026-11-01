@@ -1,5 +1,5 @@
 import type { PrismaClient, WikiRepository } from '@kos/database';
-import { ApiError, type WikiContentInput } from '@kos/shared';
+import { ApiError, sha256Hex, type WikiContentInput } from '@kos/shared';
 import { slugify, type WikiPageContent } from '@kos/wiki-engine';
 
 interface ConflictEntry {
@@ -218,6 +218,54 @@ export class WikiService {
         })
       : [];
     return { ...proposal, evidenceChunks };
+  }
+
+  async createExternalProposal(input: {
+    pageId: string;
+    summary: string;
+    evidenceChunkIds: string[];
+  }): Promise<{ id: string; status: string; existing: boolean }> {
+    const page = await this.prisma.wikiPage.findUnique({
+      where: { id: input.pageId },
+      include: { currentRevision: true },
+    });
+    if (!page || page.archivedAt) {
+      throw new ApiError('NOT_FOUND', '页面不存在');
+    }
+
+    const evidence = [...new Set(input.evidenceChunkIds)].sort();
+    const dedupeKey = sha256Hex(`mcp:${input.pageId}:${evidence.join(',')}`);
+    const existing = await this.prisma.wikiProposal.findUnique({ where: { dedupeKey } });
+    if (existing) {
+      return { id: existing.id, status: existing.status, existing: true };
+    }
+
+    const proposal = await this.wiki.createProposal({
+      targetPageId: input.pageId,
+      changeType: 'update',
+      baseRevisionId: page.currentRevisionId,
+      dedupeKey,
+      patch: {
+        summary: input.summary,
+        ops: [
+          {
+            op: 'add',
+            paragraph: {
+              id: `mcp-${dedupeKey.slice(0, 8)}`,
+              section: 'MCP 提案',
+              text: input.summary,
+              evidenceChunkIds: evidence,
+              origin: 'model',
+              versionIntroduced: 0,
+            },
+          },
+        ],
+      },
+      evidence: { chunkIds: evidence, summary: input.summary, source: 'mcp' },
+      modelMeta: { source: 'mcp' },
+    });
+
+    return { id: proposal.id, status: proposal.status, existing: false };
   }
 
   async acceptProposal(id: string, baseRevisionId?: string) {

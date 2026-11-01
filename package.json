@@ -25,7 +25,10 @@
     "report:wiki": "node scripts/wiki-quality-report.mjs",
     "report:graph": "node scripts/graph-quality-report.mjs",
     "check:contrast": "node scripts/check-contrast.mjs",
-    "clean:test-data": "pnpm --filter @kos/database exec node scripts/clean-test-data.mjs"
+    "clean:test-data": "pnpm --filter @kos/database exec node scripts/clean-test-data.mjs",
+    "accept:v3": "node scripts/acceptance-v3.mjs",
+    "mcp:start": "node apps/mcp-server/dist/index.js",
+    "mcp:http": "node apps/mcp-server/dist/index.js --http --port 3344"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",

@@ -48,6 +48,7 @@ const titlePatterns = [
   /^AC[- ]/i,
   /^AC15/,
   /^ACV2/,
+  /^ACV3/,
   /^冒烟 Agent/,
   /^DBG/,
   /^冲突[A-D] /,
@@ -189,7 +190,22 @@ if (orphanProposals.length > 0) {
   await prisma.wikiProposal.deleteMany({ where: { id: { in: ids } } });
 }
 
+const testTokenIds = (
+  await prisma.mcpToken.findMany({
+    where: {
+      OR: [
+        { name: { startsWith: 'ACV3' } },
+        { name: { startsWith: 'E2E MCP' } },
+        { name: { startsWith: '冒烟' } },
+      ],
+    },
+    select: { id: true },
+  })
+).map((token) => token.id);
+await prisma.mcpAuditLog.deleteMany({ where: { tokenId: { in: testTokenIds } } });
+const testTokens = await prisma.mcpToken.deleteMany({ where: { id: { in: testTokenIds } } });
+
 console.log(
-  `清理完成：${stale.length} 份测试文档、${sources.count} 条来源、${staleConversations.length} 个测试会话、${wikiPages.length} 个 Wiki 页面、${orphanProposals.length} 条孤儿提案、${testAgents.count} 个 Agent`,
+  `清理完成：${stale.length} 份测试文档、${sources.count} 条来源、${staleConversations.length} 个测试会话、${wikiPages.length} 个 Wiki 页面、${orphanProposals.length} 条孤儿提案、${testAgents.count} 个 Agent、${testTokens.count} 个 MCP 令牌`,
 );
 await prisma.$disconnect();

@@ -30,6 +30,11 @@ import {
   AgentUsageSchema,
   AgentEstimateSchema,
   AgentToolListSchema,
+  McpTokenListSchema,
+  McpCreatedTokenSchema,
+  McpAuditListSchema,
+  McpAuditStatsSchema,
+  McpTestResultSchema,
 } from './schemas.js';
 
 function visibleInterval(ms: number) {
@@ -722,5 +727,86 @@ export function useDeleteAgentRun() {
       void client.invalidateQueries({ queryKey: ['agent-runs'] });
       void client.invalidateQueries({ queryKey: ['agent-usage'] });
     },
+  });
+}
+
+export interface McpAuditFilters {
+  tool?: string;
+  status?: string;
+  tokenId?: string;
+  limit?: number;
+}
+
+export function useMcpTokens() {
+  return useQuery({
+    queryKey: ['mcp-tokens'],
+    queryFn: async () => McpTokenListSchema.parse(await apiFetch('/mcp-tokens')),
+    refetchInterval: visibleInterval(15_000),
+  });
+}
+
+export function useCreateMcpToken() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: Record<string, unknown>) =>
+      McpCreatedTokenSchema.parse(
+        await apiFetch('/mcp-tokens', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(input),
+        }),
+      ),
+    onSuccess: () => client.invalidateQueries({ queryKey: ['mcp-tokens'] }),
+  });
+}
+
+export function useUpdateMcpToken(id: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: Record<string, unknown>) =>
+      apiFetch(`/mcp-tokens/${id}`, {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(input),
+      }),
+    onSuccess: () => client.invalidateQueries({ queryKey: ['mcp-tokens'] }),
+  });
+}
+
+export function useRevokeMcpToken() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => apiFetch(`/mcp-tokens/${id}`, { method: 'DELETE' }),
+    onSuccess: () => client.invalidateQueries({ queryKey: ['mcp-tokens'] }),
+  });
+}
+
+export function useTestMcpToken() {
+  return useMutation({
+    mutationFn: async (id: string) =>
+      McpTestResultSchema.parse(await apiFetch(`/mcp-tokens/${id}/test`, { method: 'POST' })),
+  });
+}
+
+export function useMcpAudits(filters: McpAuditFilters) {
+  const search = new URLSearchParams();
+  for (const [key, value] of Object.entries(filters)) {
+    if (value !== undefined && value !== '') {
+      search.set(key, String(value));
+    }
+  }
+  return useQuery({
+    queryKey: ['mcp-audits', filters],
+    queryFn: async () =>
+      McpAuditListSchema.parse(await apiFetch(`/mcp-audit?${search.toString()}`)),
+    refetchInterval: visibleInterval(10_000),
+  });
+}
+
+export function useMcpAuditStats() {
+  return useQuery({
+    queryKey: ['mcp-audit-stats'],
+    queryFn: async () => McpAuditStatsSchema.parse(await apiFetch('/mcp-audit/stats')),
+    refetchInterval: visibleInterval(15_000),
   });
 }

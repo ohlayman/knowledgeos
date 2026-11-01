@@ -13,12 +13,14 @@ import {
 import type { Settings } from '../../features/schemas.js';
 import { errorMessage } from '../../lib/api-client.js';
 import { useTheme, type ThemeMode } from '../../lib/theme.js';
+import { McpSettings } from './McpSettings.js';
 
-type Tab = 'models' | 'retrieval' | 'appearance' | 'storage';
+type Tab = 'models' | 'retrieval' | 'mcp' | 'appearance' | 'storage';
 
 const TABS: Array<[Tab, string]> = [
   ['models', '模型与连接'],
   ['retrieval', '检索偏好'],
+  ['mcp', 'MCP 接入'],
   ['appearance', '外观'],
   ['storage', '存储'],
 ];
@@ -65,7 +67,7 @@ export function SettingsPage() {
 
   return (
     <div className="page">
-      <PageHeader title="设置" subtitle="模型、检索参数与本地存储" />
+      <PageHeader title="设置" subtitle="模型、检索参数、MCP 接入与本地存储" />
 
       <div className="settings-grid">
         <nav className="settings-nav" aria-label="设置分区">
@@ -84,6 +86,7 @@ export function SettingsPage() {
         <div className="stack" style={{ gap: 20 }}>
           {tab === 'models' ? <ModelsTab settings={settings.data} /> : null}
           {tab === 'retrieval' ? <RetrievalTab settings={settings.data} /> : null}
+          {tab === 'mcp' ? <McpSettings /> : null}
           {tab === 'appearance' ? <AppearanceTab /> : null}
           {tab === 'storage' ? (
             <section className="stack">

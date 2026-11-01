@@ -7,13 +7,14 @@ import {
   DocumentRepository,
   JobRepository,
   loadProviderSettings,
+  McpTokenRepository,
   PrismaGraphStore,
   WikiRepository,
   type PrismaClient,
 } from '@kos/database';
 import { GraphService } from '@kos/graph';
 import { collectionName, createEmbeddingProvider } from '@kos/embeddings';
-import { createChatProvider } from '@kos/llm';
+import { createChatProvider, type ChatProvider } from '@kos/llm';
 import {
   cancelIngest,
   createDocumentQueue,
@@ -65,6 +66,8 @@ export interface AppDeps {
   wiki: WikiService;
   graph: GraphService;
   agents: AgentService;
+  mcpTokens: McpTokenRepository;
+  chatProvider: () => Promise<ChatProvider>;
 }
 
 export async function createDeps(env: Env): Promise<AppDeps> {
@@ -157,6 +160,7 @@ export async function createDeps(env: Env): Promise<AppDeps> {
       versionId: input.versionId,
     });
   });
+  const mcpTokens = new McpTokenRepository(prisma);
   const agents = createAgentService({
     prisma,
     agents: new AgentRepository(prisma),
@@ -193,6 +197,8 @@ export async function createDeps(env: Env): Promise<AppDeps> {
     wiki,
     graph,
     agents,
+    mcpTokens,
+    chatProvider,
     db: {
       async ping() {
         await prisma.$queryRaw`SELECT 1`;

@@ -72,6 +72,10 @@ describe.skipIf(!enabled)('POST /api/v1/documents/files batch import', () => {
       wiki: {} as AppDeps['wiki'],
       graph: {} as AppDeps['graph'],
       agents: {} as AppDeps['agents'],
+      mcpTokens: {} as AppDeps['mcpTokens'],
+      chatProvider: async () => {
+        throw new Error('unused');
+      },
     };
 
     app = buildApp(deps);
