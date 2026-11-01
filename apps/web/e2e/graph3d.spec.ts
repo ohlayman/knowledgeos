@@ -68,3 +68,30 @@ test('camera zoom changes position and reset restores it', async ({ page }) => {
     .poll(async () => root.getAttribute('data-camera'), { timeout: 10_000 })
     .toBe('0,0,620');
 });
+
+test('hidden node list expands a node once', async ({ page }) => {
+  let neighborRequests = 0;
+  page.on('request', (request) => {
+    if (request.url().includes('/neighbors')) {
+      neighborRequests += 1;
+    }
+  });
+
+  await page.goto('/graph');
+  const list = page.getByRole('list', { name: '图谱节点列表' });
+  const first = list.getByRole('button').first();
+  if ((await list.getByRole('button').count()) === 0) {
+    test.skip(true, '开发库没有可用的图谱节点');
+  }
+
+  await first.focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('button', { name: '关闭' })).toBeVisible();
+  const afterFirst = neighborRequests;
+
+  await page.waitForTimeout(500);
+  await first.focus();
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(700);
+  expect(neighborRequests).toBe(afterFirst);
+});

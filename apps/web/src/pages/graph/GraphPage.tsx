@@ -19,6 +19,7 @@ import {
 } from '../../lib/graph-view.js';
 import { supportsWebGL } from '../../lib/webgl.js';
 import type { Graph3DViewHandle } from './Graph3DView.js';
+import { GraphA11yList } from './GraphA11yList.js';
 
 const TYPE_LABELS: Record<string, string> = {
   concept: '概念',
@@ -271,6 +272,13 @@ export function GraphPage() {
             ) : null}
           </div>
         }
+      />
+
+      <GraphA11yList
+        nodes={visibleNodes}
+        selected={selected}
+        onSelect={setSelected}
+        onExpand={(node) => void expand(node)}
       />
 
       {aggregate ? (
