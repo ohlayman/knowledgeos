@@ -3,6 +3,7 @@ export interface GraphPalette {
   node: string;
   selected: string;
   link: string;
+  pending: string;
   conflict: string;
   text: string;
 }
@@ -15,6 +16,7 @@ const PALETTES: Record<'light' | 'dark', GraphPalette> = {
     node: '#8c8779',
     selected: '#2c5a5f',
     link: '#9a9284',
+    pending: '#c4bdb0',
     conflict: '#9e2b25',
     text: '#3a3833',
   },
@@ -23,6 +25,7 @@ const PALETTES: Record<'light' | 'dark', GraphPalette> = {
     node: '#a49d8f',
     selected: '#6fa8a6',
     link: '#6e675a',
+    pending: '#4a443b',
     conflict: '#e07a70',
     text: '#c4beb2',
   },

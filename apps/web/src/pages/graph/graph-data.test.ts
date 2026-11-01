@@ -56,10 +56,7 @@ describe('toGraph3DData', () => {
 
 describe('neighborsOf / labelVisible', () => {
   it('返回出入边的直接邻居', () => {
-    expect([...neighborsOf([edge('e1', 'a', 'b'), edge('e2', 'c', 'a')], 'a')]).toEqual([
-      'b',
-      'c',
-    ]);
+    expect([...neighborsOf([edge('e1', 'a', 'b'), edge('e2', 'c', 'a')], 'a')]).toEqual(['b', 'c']);
   });
 
   it('150 内全部显示；超过后只显示选中、hover 与邻居', () => {

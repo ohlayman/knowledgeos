@@ -61,6 +61,6 @@ design            交互原型
 
 ## 当前进度
 
-V1、V1.5、V2、V3 均已实现并通过各自验收；V1 发布（tag / GitHub Release）仍待确认。完整任务与验收见 [`docs/PROGRESS.md`](docs/PROGRESS.md)。
+V1、V1.5、V2、V3 与 V2.1（3D 图谱）均已实现并通过各自验收；V1 发布（tag / GitHub Release）仍待确认。完整任务与验收见 [`docs/PROGRESS.md`](docs/PROGRESS.md)。
 
 MCP 接入方式见 [`docs/OPERATIONS.md`](docs/OPERATIONS.md) 的「2.2 MCP 接入」。

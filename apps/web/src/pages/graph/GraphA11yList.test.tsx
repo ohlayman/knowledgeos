@@ -30,9 +30,7 @@ describe('GraphA11yList', () => {
   });
 
   it('标记当前选中节点', () => {
-    render(
-      <GraphA11yList nodes={[node]} selected="a" onSelect={vi.fn()} onExpand={vi.fn()} />,
-    );
+    render(<GraphA11yList nodes={[node]} selected="a" onSelect={vi.fn()} onExpand={vi.fn()} />);
 
     expect(screen.getByRole('button', { name: '节点 RRF' })).toHaveAttribute(
       'aria-pressed',

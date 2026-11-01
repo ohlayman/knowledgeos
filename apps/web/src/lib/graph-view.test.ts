@@ -1,10 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  canUse3D,
-  defaultViewMode,
-  resolveViewMode,
-  shouldOfferFallback,
-} from './graph-view.js';
+import { canUse3D, defaultViewMode, resolveViewMode, shouldOfferFallback } from './graph-view.js';
 
 describe('图谱视图模式', () => {
   it('桌面且 WebGL 可用时默认 3D', () => {

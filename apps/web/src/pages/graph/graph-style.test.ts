@@ -11,6 +11,7 @@ describe('graph style', () => {
       'node',
       'selected',
       'link',
+      'pending',
       'conflict',
       'text',
     ]);

@@ -7,9 +7,9 @@
 
 ## 1. 当前结论
 
-- **当前阶段：** V3（MCP Server）完成：六个工具、令牌与作用域、检索阶段下推、审计与限流、32KB 截断、stdio/HTTP 传输均已实现；10 条验收 + 1 条连通性检查全部通过。
-- **当前版本：** V3。
-- **下一步：** 接入真实模型复测图谱类型准确率与 Agent 质量；在 Claude Code / Cursor 中完成真实会话验证 MCP 采用率；V1 发布仍待确认。
+- **当前阶段：** V2.1（3D 图谱视图）完成：桌面默认 3D、相机交互、展开/悬停/搜索定位、隐藏节点列表、WebGL 降级与懒加载；10 条验收全部通过。
+- **当前版本：** V3 + V2.1 增补。
+- **下一步：** 用真实资料复测 400 节点 3D 表现；接入真实模型复测图谱类型准确率与 Agent 质量；在 Claude Code / Cursor 中验证 MCP 采用率；V1 发布仍待确认。
 - **环境说明：** 本机原生 PostgreSQL 占用 5432，compose 的 Postgres 映射到宿主 5433；`.env.example` 已同步。
 - **集成测试：** Turbo 2 默认 strict 环境透传，跑真实依赖需 `RUN_DB_INTEGRATION=1 pnpm test -- --env-mode=loose`。
 - **阻塞：** 无。
@@ -23,6 +23,7 @@
 | V1 | DONE | DONE | DONE | DONE | DONE（M0–M8，发布待确认） |
 | V1.5 | DONE | DONE（扩展章节） | DONE（预留表） | DONE（里程碑） | DONE（12/12 验收） |
 | V2 | DONE | DONE（扩展章节） | DONE（预留表） | DONE（里程碑） | DONE（12/12 验收） |
+| V2.1（3D 图谱） | DONE（v1.1 增补） | DONE（UIUX 2.7） | 不需要 | DONE（8 任务） | DONE（10/10 验收） |
 | V3 | DONE | DONE（扩展章节） | DONE（预留表） | DONE（里程碑） | DONE（11/11 验收） |
 
 **说明：** 技术设计、数据库设计、实现计划采用「一套主文档 + 版本扩展」的组织方式，不按版本拆成 12 份，避免重复内容与维护分叉。
@@ -206,6 +207,19 @@
 | V3-M8 Claude Code / Cursor 接入片段 | DONE | 2026-11-01 | 设置页三个 Tab 片段（占位符）；真实客户端会话待用户复测 |
 | V3-M9 10 条验收 + 外部可用性报告 | DONE | 2026-11-01 | `accept:v3` 11/11；`docs/MCP_USABILITY_REPORT.md` |
 
+### V2.1 3D 图谱任务看板
+
+| 任务 | 状态 | 完成 | 证据 |
+| --- | --- | --- | --- |
+| V2.1-T1 视图模式与 WebGL 能力判断 | DONE | 2026-11-01 | `graph-view.ts` / `webgl.ts` 7 条单测；UIUX 2.7 |
+| V2.1-T2 数据适配与视觉常量 | DONE | 2026-11-01 | `graph-data.ts` / `graph-style.ts` 6 条单测 |
+| V2.1-T3 3D 组件与懒加载 | DONE | 2026-11-01 | `Graph3DView.tsx`；独立 gzip chunk 387.5KB |
+| V2.1-T4 页面三态切换与持久化 | DONE | 2026-11-01 | `GraphPage.test.tsx`；E2E 默认 3D/平面持久化 |
+| V2.1-T5 相机、悬停、搜索、重置 | DONE | 2026-11-01 | 组件单测；E2E 缩放/重置/搜索定位 |
+| V2.1-T6 无障碍隐藏节点列表 | DONE | 2026-11-01 | `GraphA11yList` 2 条单测；E2E 键盘展开去重 |
+| V2.1-T7 WebGL 降级与慢设备提示 | DONE | 2026-11-01 | E2E 无 WebGL/上下文丢失；降级 261ms |
+| V2.1-T8 验收、性能报告与门禁 | DONE | 2026-11-01 | `ACCEPTANCE_V2.1.md`；`GRAPH_3D_PERFORMANCE_REPORT.md` |
+
 ---
 
 ## 4. 质量门禁
@@ -220,15 +234,17 @@
 | 处理中普通接口 P95 | DONE | 13ms | ≤ 500ms |
 | 引用可解析率 | DONE | 100%（20/20） | 100% |
 | 正文对比度 | DONE | 最低 5.00:1 | ≥ 4.5:1 |
-| 单测 | DONE | 283/283 通过（api 74 + shared 50 + parser 25 + wiki-engine 25 + web 18 + graph 12 + agent-core 12 + llm 12 + extraction 10 + embeddings 10 + chunking 8 + mcp-server 8 + storage 8 + retrieval 9 + queue 2） | 全绿 |
+| 单测 | DONE | 302/302 通过（api 74 + shared 50 + web 37 + parser 25 + wiki-engine 25 + graph 12 + agent-core 12 + llm 12 + extraction 10 + embeddings 10 + chunking 8 + mcp-server 8 + storage 8 + retrieval 9 + queue 2） | 全绿 |
 | 集成 | DONE | 72/72 通过（数据库 23 + api 25 + worker 11 + 检索 11 + 队列 1 + 评测 1） | 全绿 |
-| E2E | DONE | 14/14 通过（V1 四档/三态/键盘、Wiki、图谱展开与实体高亮、Agent 回放、MCP 接入向导与日志、移动端） | 全绿 |
+| E2E | DONE | 21/21 通过（V1 四档/三态/键盘、Wiki、图谱展开与实体高亮、Agent 回放、MCP 接入、3D 图谱 7 条、移动端） | 全绿 |
 | V1.5 验收 | DONE | 12/12 通过（`pnpm accept:v15`） | 全绿 |
 | V1.5 提案质量 | DONE | 见 `docs/WIKI_QUALITY_REPORT.md`（样本 183 条：接受率 83.3%、平均审核 0.7 分钟） | 已产出 |
 | V2 验收 | DONE | 12/12 通过（`pnpm accept:v2`） | 全绿 |
 | V2 图谱质量 | DONE | 见 `docs/GRAPH_QUALITY_REPORT.md`（样本 199 条，证据可解析率 100%，人工确认 3%） | 已产出 |
 | V3 验收 | DONE | 11/11 通过（`pnpm accept:v3`：10 条 AC + 1 条工具连通性） | 全绿 |
 | V3 外部可用性 | DONE | 见 `docs/MCP_USABILITY_REPORT.md`（13 次调用成功率 100%，平均 75ms；真实客户端采用率待测） | 已产出 |
+| V2.1 验收 | DONE | 10/10 通过（`docs/ACCEPTANCE_V2.1.md`） | 全绿 |
+| V2.1 3D 性能 | DONE | 首帧 865ms、400 节点 55fps、3D chunk 387.5KB gzip、降级 261ms | 已达标 |
 
 ---
 
@@ -259,3 +275,4 @@
 | 2026-11-01 | V1.5 完成：抽取、编译、归属、冲突、提案、审核 API、版本/回滚/过期、双链与 Wiki 前端；`accept:v15` 12/12；提案质量报告产出 |
 | 2026-11-01 | V2 完成：入图门槛、图查询与第三路检索、图谱 UI、Agent 运行时/工具/预算、执行回放；`accept:v2` 12/12；图谱质量报告产出 |
 | 2026-11-01 | V3 完成：六个 MCP 工具、令牌/作用域、检索下推、审计与限流、32KB 截断、stdio/HTTP；`accept:v3` 11/11；外部可用性报告产出 |
+| 2026-11-01 | V2.1 完成：3D 图谱默认视图、相机/悬停/搜索交互、隐藏节点列表、WebGL 降级与懒加载；10/10 验收；性能报告产出 |

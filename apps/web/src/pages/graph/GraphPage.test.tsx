@@ -73,10 +73,7 @@ describe('GraphPage 视图切换', () => {
     );
 
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: '列表' })).toHaveAttribute(
-        'aria-pressed',
-        'true',
-      ),
+      expect(screen.getByRole('button', { name: '列表' })).toHaveAttribute('aria-pressed', 'true'),
     );
     expect(screen.queryByTestId('graph3d-view')).not.toBeInTheDocument();
   });
